@@ -1,4 +1,3 @@
-
 const express = require("express");
 
 const router = express.Router();
@@ -6,7 +5,9 @@ const router = express.Router();
 const db = require("../db");
 
 
+// =============================
 // REGISTER ORGANIZER
+// =============================
 router.post("/organizer/register", (req, res) => {
 
   const {
@@ -16,84 +17,103 @@ router.post("/organizer/register", (req, res) => {
     password,
   } = req.body;
 
+  // CHECK EMAIL / PHONE
   const checkSql = `
-  SELECT * FROM users
-  WHERE email = ? OR phone = ?
-`;
+    SELECT *
+    FROM users
+    WHERE email = ?
+    OR phone = ?
+  `;
 
-db.query(
-  checkSql,
-  [email, phone],
-  (checkErr, checkResult) => {
+  db.query(
+    checkSql,
+    [email, phone],
+    (checkErr, checkResult) => {
 
-    if (checkErr) {
-      return res.status(500).json(checkErr);
-    }
+      if (checkErr) {
 
-    if (checkResult.length > 0) {
-
-      return res.status(400).json({
-        message: "Email hoặc số điện thoại đã tồn tại",
-      });
-
-    }
-
-    const sql = `
-      INSERT INTO users
-      (
-        name,
-        email,
-        phone,
-        password,
-        role,
-        status
-      )
-      VALUES (?, ?, ?, ?, ?, ?)
-    `;
-
-    db.query(
-      sql,
-      [
-        organization_name,
-        email,
-        phone,
-        password,
-        "ORGANIZER",
-        "ACTIVE",
-      ],
-      (err, result) => {
-
-        if (err) {
-          return res.status(500).json(err);
-        }
-
-        res.json({
-          message: "Đăng ký organizer thành công",
+        return res.status(500).json({
+          message: "Server error",
         });
 
       }
-    );
 
-  }
-);
+      // EMAIL EXISTS
+      const emailExists = checkResult.find(
+        (user) => user.email === email
+      );
 
-  const sql = `
-    INSERT INTO users
-    (
-      name,
-      email,
-      phone,
-      password,
-      role,
-      status
-    )
-    VALUES (?, ?, ?, ?, ?, ?)
-  `;
+      if (emailExists) {
 
+        return res.status(400).json({
+          message: "Email đã tồn tại",
+        });
+
+      }
+
+      // PHONE EXISTS
+      const phoneExists = checkResult.find(
+        (user) => user.phone === phone
+      );
+
+      if (phoneExists) {
+
+        return res.status(400).json({
+          message: "Số điện thoại đã tồn tại",
+        });
+
+      }
+
+      // INSERT USER
+      const sql = `
+        INSERT INTO users
+        (
+          name,
+          email,
+          phone,
+          password,
+          role,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+      `;
+
+      db.query(
+        sql,
+        [
+          organization_name,
+          email,
+          phone,
+          password,
+          "ORGANIZER",
+          "ACTIVE",
+        ],
+        (err, result) => {
+
+          if (err) {
+
+            return res.status(500).json({
+              message: "Đăng ký thất bại",
+            });
+
+          }
+
+          res.json({
+            message: "Đăng ký organizer thành công",
+          });
+
+        }
+      );
+
+    }
+  );
 
 });
 
+
+// =============================
 // LOGIN
+// =============================
 router.post("/login", (req, res) => {
 
   const {
@@ -101,33 +121,50 @@ router.post("/login", (req, res) => {
     password,
   } = req.body;
 
+  // FIND EMAIL
   const sql = `
     SELECT *
     FROM users
     WHERE email = ?
-    AND password = ?
   `;
 
   db.query(
     sql,
-    [email, password],
+    [email],
     (err, results) => {
 
       if (err) {
-        return res.status(500).json(err);
-      }
 
-      if (results.length === 0) {
-
-        return res.status(401).json({
-          message: "Sai email hoặc mật khẩu",
+        return res.status(500).json({
+          message: "Server error",
         });
 
       }
 
+      // EMAIL NOT FOUND
+      if (results.length === 0) {
+
+        return res.status(404).json({
+          message: "Email không tồn tại",
+        });
+
+      }
+
+      const user = results[0];
+
+      // WRONG PASSWORD
+      if (user.password !== password) {
+
+        return res.status(401).json({
+          message: "Sai mật khẩu",
+        });
+
+      }
+
+      // SUCCESS
       res.json({
         message: "Đăng nhập thành công",
-        user: results[0],
+        user,
       });
 
     }
