@@ -6,6 +6,142 @@ const db = require("../db");
 
 
 // =============================
+// REGISTER USER
+// =============================
+router.post("/register", (req, res) => {
+
+  const {
+    name,
+    email,
+    phone,
+    password,
+  } = req.body;
+
+  // CHECK EMAIL / PHONE
+  const checkSql = `
+    SELECT *
+    FROM users
+    WHERE email = ?
+    OR phone = ?
+  `;
+
+  db.query(
+
+    checkSql,
+
+    [email, phone],
+
+    (checkErr, checkResult) => {
+
+      if (checkErr) {
+
+        return res.status(500).json({
+          message: "Server error",
+        });
+
+      }
+
+      // EMAIL EXISTS
+      const emailExists =
+        checkResult.find(
+          (user) =>
+            user.email === email
+        );
+
+      if (emailExists) {
+
+        return res.status(400).json({
+          message: "Email đã tồn tại",
+        });
+
+      }
+
+      // PHONE EXISTS
+      const phoneExists =
+        checkResult.find(
+          (user) =>
+            user.phone === phone
+        );
+
+      if (phoneExists) {
+
+        return res.status(400).json({
+          message:
+            "Số điện thoại đã tồn tại",
+        });
+
+      }
+
+      // INSERT USER
+      const sql = `
+        INSERT INTO users
+        (
+          name,
+          email,
+          phone,
+          password,
+          role,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+      `;
+
+      db.query(
+
+        sql,
+
+        [
+          name,
+          email,
+          phone,
+          password,
+          "USER",
+          "ACTIVE",
+        ],
+
+        (err, result) => {
+
+          if (err) {
+
+            return res.status(500).json({
+              message:
+                "Đăng ký thất bại",
+            });
+
+          }
+
+          res.json({
+
+            message:
+              "Đăng ký thành công",
+
+            user: {
+
+              id:
+                result.insertId,
+
+              name,
+              email,
+
+              role:
+                "USER",
+
+            },
+
+          });
+
+        }
+
+      );
+
+    }
+
+  );
+
+});
+
+
+// =============================
 // REGISTER ORGANIZER
 // =============================
 router.post("/organizer/register", (req, res) => {
@@ -26,8 +162,11 @@ router.post("/organizer/register", (req, res) => {
   `;
 
   db.query(
+
     checkSql,
+
     [email, phone],
+
     (checkErr, checkResult) => {
 
       if (checkErr) {
@@ -39,32 +178,38 @@ router.post("/organizer/register", (req, res) => {
       }
 
       // EMAIL EXISTS
-      const emailExists = checkResult.find(
-        (user) => user.email === email
-      );
+      const emailExists =
+        checkResult.find(
+          (user) =>
+            user.email === email
+        );
 
       if (emailExists) {
 
         return res.status(400).json({
-          message: "Email đã tồn tại",
+          message:
+            "Email đã tồn tại",
         });
 
       }
 
       // PHONE EXISTS
-      const phoneExists = checkResult.find(
-        (user) => user.phone === phone
-      );
+      const phoneExists =
+        checkResult.find(
+          (user) =>
+            user.phone === phone
+        );
 
       if (phoneExists) {
 
         return res.status(400).json({
-          message: "Số điện thoại đã tồn tại",
+          message:
+            "Số điện thoại đã tồn tại",
         });
 
       }
 
-      // INSERT USER
+      // INSERT ORGANIZER
       const sql = `
         INSERT INTO users
         (
@@ -79,7 +224,9 @@ router.post("/organizer/register", (req, res) => {
       `;
 
       db.query(
+
         sql,
+
         [
           organization_name,
           email,
@@ -88,24 +235,46 @@ router.post("/organizer/register", (req, res) => {
           "ORGANIZER",
           "ACTIVE",
         ],
+
         (err, result) => {
 
           if (err) {
 
             return res.status(500).json({
-              message: "Đăng ký thất bại",
+              message:
+                "Đăng ký organizer thất bại",
             });
 
           }
 
           res.json({
-            message: "Đăng ký organizer thành công",
+
+            message:
+              "Đăng ký organizer thành công",
+
+            user: {
+
+              id:
+                result.insertId,
+
+              name:
+                organization_name,
+
+              email,
+
+              role:
+                "ORGANIZER",
+
+            },
+
           });
 
         }
+
       );
 
     }
+
   );
 
 });
@@ -121,16 +290,25 @@ router.post("/login", (req, res) => {
     password,
   } = req.body;
 
-  // FIND EMAIL
+  // FIND USER
   const sql = `
-    SELECT *
+    SELECT
+      id,
+      name,
+      email,
+      password,
+      role,
+      status
     FROM users
     WHERE email = ?
   `;
 
   db.query(
+
     sql,
+
     [email],
+
     (err, results) => {
 
       if (err) {
@@ -142,32 +320,61 @@ router.post("/login", (req, res) => {
       }
 
       // EMAIL NOT FOUND
-      if (results.length === 0) {
+      if (
+        results.length === 0
+      ) {
 
         return res.status(404).json({
-          message: "Email không tồn tại",
+          message:
+            "Email không tồn tại",
         });
 
       }
 
-      const user = results[0];
+      const user =
+        results[0];
 
       // WRONG PASSWORD
-      if (user.password !== password) {
+      if (
+        user.password !==
+        password
+      ) {
 
         return res.status(401).json({
-          message: "Sai mật khẩu",
+          message:
+            "Sai mật khẩu",
         });
 
       }
+
+      // ACCOUNT LOCKED
+      if (
+        user.status !==
+        "ACTIVE"
+      ) {
+
+        return res.status(403).json({
+          message:
+            "Tài khoản đã bị khóa",
+        });
+
+      }
+
+      // REMOVE PASSWORD
+      delete user.password;
 
       // SUCCESS
       res.json({
-        message: "Đăng nhập thành công",
+
+        message:
+          "Đăng nhập thành công",
+
         user,
+
       });
 
     }
+
   );
 
 });
