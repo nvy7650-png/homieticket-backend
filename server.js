@@ -6,11 +6,15 @@ const path = require("path");
 
 const db = require("./db");
 
+// ROUTES
 const eventRoutes =
   require("./routes/event.routes");
 
 const authRoutes =
   require("./routes/auth.routes");
+
+const categoryRoutes =
+  require("./routes/category.routes");
 
 const app = express();
 
@@ -48,14 +52,22 @@ app.use(
 // ROUTES
 // ============================
 
+// EVENTS
 app.use(
   "/api/events",
   eventRoutes
 );
 
+// AUTH
 app.use(
   "/api/auth",
   authRoutes
+);
+
+// CATEGORIES
+app.use(
+  "/api/categories",
+  categoryRoutes
 );
 
 
