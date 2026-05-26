@@ -8,6 +8,21 @@ const multer = require("multer");
 
 const path = require("path");
 
+const fs = require("fs");
+
+
+// ============================
+// CREATE UPLOADS FOLDER
+// ============================
+
+if (
+  !fs.existsSync("uploads")
+) {
+
+  fs.mkdirSync("uploads");
+
+}
+
 
 // ============================
 // MULTER CONFIG
@@ -37,7 +52,9 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
+
   storage,
+
 });
 
 
@@ -194,6 +211,24 @@ router.post(
 
       } = req.body;
 
+      // VALIDATE
+      if (
+        !organizer_id ||
+        !title ||
+        !location
+      ) {
+
+        return res
+          .status(400)
+          .json({
+
+            message:
+              "Thiếu thông tin bắt buộc",
+
+          });
+
+      }
+
       // REQUIRE IMAGE
       if (!req.file) {
 
@@ -202,7 +237,7 @@ router.post(
           .json({
 
             message:
-              "Banner là bắt buộc",
+              "Banner sự kiện là bắt buộc",
 
           });
 
@@ -247,15 +282,15 @@ router.post(
 
           organizer_id,
 
-          category_id,
+          category_id || null,
 
           title,
 
-          description,
+          description || null,
 
           location,
 
-          seat_mode,
+          seat_mode || "MANUAL",
 
           image_url,
 
@@ -321,34 +356,44 @@ router.get(
     const organizerId =
       req.params.id;
 
-    // TOTAL EVENTS
-    const eventsSql = `
-      SELECT COUNT(*) AS totalEvents
+    const sql = `
+
+      SELECT
+        COUNT(*) AS totalEvents
+
       FROM events
+
       WHERE organizer_id = ?
+
     `;
 
     db.query(
 
-      eventsSql,
+      sql,
 
       [organizerId],
 
-      (err, eventsResult) => {
+      (err, results) => {
 
         if (err) {
 
+          console.log(err);
+
           return res
             .status(500)
-            .json(err);
+            .json({
+
+              message:
+                "Lỗi server",
+
+            });
 
         }
 
         res.json({
 
           totalEvents:
-
-            eventsResult[0]
+            results[0]
               .totalEvents,
 
           totalTickets: 0,
@@ -362,6 +407,7 @@ router.get(
     );
 
   }
+
 );
 
 module.exports = router;
