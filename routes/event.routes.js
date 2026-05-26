@@ -42,27 +42,124 @@ const upload = multer({
 
 
 // ============================
-// GET EVENTS
+// GET ALL EVENTS
 // ============================
 
 router.get("/", (req, res) => {
 
-  const sql =
-    "SELECT * FROM events";
+  const sql = `
+
+    SELECT
+
+      events.*,
+
+      categories.name
+      AS category_name
+
+    FROM events
+
+    LEFT JOIN categories
+
+    ON events.category_id =
+    categories.id
+
+    ORDER BY events.id DESC
+
+  `;
 
   db.query(sql, (err, results) => {
 
     if (err) {
 
+      console.log(err);
+
       return res
         .status(500)
-        .json(err);
+        .json({
+
+          message:
+            "Lỗi server",
+
+        });
 
     }
 
     res.json(results);
 
   });
+
+});
+
+
+// ============================
+// GET SINGLE EVENT
+// ============================
+
+router.get("/:id", (req, res) => {
+
+  const sql = `
+
+    SELECT
+
+      events.*,
+
+      categories.name
+      AS category_name
+
+    FROM events
+
+    LEFT JOIN categories
+
+    ON events.category_id =
+    categories.id
+
+    WHERE events.id = ?
+
+  `;
+
+  db.query(
+
+    sql,
+
+    [req.params.id],
+
+    (err, results) => {
+
+      if (err) {
+
+        console.log(err);
+
+        return res
+          .status(500)
+          .json({
+
+            message:
+              "Lỗi server",
+
+          });
+
+      }
+
+      if (
+        results.length === 0
+      ) {
+
+        return res
+          .status(404)
+          .json({
+
+            message:
+              "Không tìm thấy sự kiện",
+
+          });
+
+      }
+
+      res.json(results[0]);
+
+    }
+
+  );
 
 });
 
@@ -84,18 +181,37 @@ router.post(
       const {
 
         organizer_id,
+
+        category_id,
+
         title,
+
         description,
+
         location,
-        event_type,
+
+        seat_mode,
 
       } = req.body;
 
+      // REQUIRE IMAGE
+      if (!req.file) {
+
+        return res
+          .status(400)
+          .json({
+
+            message:
+              "Banner là bắt buộc",
+
+          });
+
+      }
+
       // IMAGE URL
       const image_url =
-        req.file
-          ? `/uploads/${req.file.filename}`
-          : null;
+
+        `/uploads/${req.file.filename}`;
 
       const sql = `
 
@@ -104,15 +220,22 @@ router.post(
         (
 
           organizer_id,
+
+          category_id,
+
           title,
+
           description,
+
           location,
-          event_type,
+
+          seat_mode,
+
           image_url
 
         )
 
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
 
       `;
 
@@ -123,10 +246,17 @@ router.post(
         [
 
           organizer_id,
+
+          category_id,
+
           title,
+
           description,
+
           location,
-          event_type,
+
+          seat_mode,
+
           image_url,
 
         ],
@@ -177,6 +307,61 @@ router.post(
 
   }
 
+);
+
+
+// ============================
+// ORGANIZER STATS
+// ============================
+
+router.get(
+  "/organizer/:id/stats",
+  (req, res) => {
+
+    const organizerId =
+      req.params.id;
+
+    // TOTAL EVENTS
+    const eventsSql = `
+      SELECT COUNT(*) AS totalEvents
+      FROM events
+      WHERE organizer_id = ?
+    `;
+
+    db.query(
+
+      eventsSql,
+
+      [organizerId],
+
+      (err, eventsResult) => {
+
+        if (err) {
+
+          return res
+            .status(500)
+            .json(err);
+
+        }
+
+        res.json({
+
+          totalEvents:
+
+            eventsResult[0]
+              .totalEvents,
+
+          totalTickets: 0,
+
+          revenue: 0,
+
+        });
+
+      }
+
+    );
+
+  }
 );
 
 module.exports = router;
