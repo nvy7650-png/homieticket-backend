@@ -4,6 +4,7 @@ const cors = require("cors");
 
 const path = require("path");
 
+// DB
 const db = require("./db");
 
 // ROUTES
@@ -15,6 +16,9 @@ const authRoutes =
 
 const categoryRoutes =
   require("./routes/category.routes");
+
+const adminRoutes =
+  require("./routes/admin.routes");
 
 const app = express();
 
@@ -68,6 +72,12 @@ app.use(
 app.use(
   "/api/categories",
   categoryRoutes
+);
+
+// ADMIN
+app.use(
+  "/api/admin",
+  adminRoutes
 );
 
 
