@@ -59,7 +59,8 @@ const upload = multer({
 
 
 // ============================
-// GET ALL EVENTS
+// GET ALL APPROVED EVENTS
+// HOMEPAGE
 // ============================
 
 router.get("/", (req, res) => {
@@ -79,6 +80,8 @@ router.get("/", (req, res) => {
 
     ON events.category_id =
     categories.id
+
+    WHERE events.status = 'APPROVED'
 
     ORDER BY events.id DESC
 
@@ -106,6 +109,69 @@ router.get("/", (req, res) => {
   });
 
 });
+
+
+// ============================
+// ORGANIZER EVENTS
+// ============================
+
+router.get(
+  "/organizer/:id",
+  (req, res) => {
+
+    const sql = `
+
+      SELECT
+
+        events.*,
+
+        categories.name
+        AS category_name
+
+      FROM events
+
+      LEFT JOIN categories
+
+      ON events.category_id =
+      categories.id
+
+      WHERE organizer_id = ?
+
+      ORDER BY events.id DESC
+
+    `;
+
+    db.query(
+
+      sql,
+
+      [req.params.id],
+
+      (err, results) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res
+            .status(500)
+            .json({
+
+              message:
+                "Lỗi server",
+
+            });
+
+        }
+
+        res.json(results);
+
+      }
+
+    );
+
+  }
+);
 
 
 // ============================
@@ -182,7 +248,7 @@ router.get("/:id", (req, res) => {
 
 
 // ============================
-// CREATE EVENT
+// CREATE EVENT (STEP 1)
 // ============================
 
 router.post(
@@ -266,11 +332,13 @@ router.post(
 
           seat_mode,
 
-          image_url
+          image_url,
+
+          status
 
         )
 
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 
       `;
 
@@ -293,6 +361,8 @@ router.post(
           seat_mode || "MANUAL",
 
           image_url,
+
+          "DRAFT",
 
         ],
 
@@ -342,6 +412,63 @@ router.post(
 
   }
 
+);
+
+
+// ============================
+// COMPLETE EVENT
+// STEP 3
+// ============================
+
+router.put(
+  "/:id/submit",
+  (req, res) => {
+
+    const sql = `
+
+      UPDATE events
+
+      SET status = 'PENDING'
+
+      WHERE id = ?
+
+    `;
+
+    db.query(
+
+      sql,
+
+      [req.params.id],
+
+      (err) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res
+            .status(500)
+            .json({
+
+              message:
+                "Lỗi submit event",
+
+            });
+
+        }
+
+        res.json({
+
+          message:
+            "Đã gửi xét duyệt",
+
+        });
+
+      }
+
+    );
+
+  }
 );
 
 
