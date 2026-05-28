@@ -15,9 +15,7 @@ const fs = require("fs");
 // CREATE UPLOADS FOLDER
 // ============================
 
-if (
-  !fs.existsSync("uploads")
-) {
+if (!fs.existsSync("uploads")) {
 
   fs.mkdirSync("uploads");
 
@@ -52,9 +50,7 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
-
   storage,
-
 });
 
 
@@ -96,10 +92,7 @@ router.get("/", (req, res) => {
       return res
         .status(500)
         .json({
-
-          message:
-            "Lỗi server",
-
+          message: "Lỗi server",
         });
 
     }
@@ -156,10 +149,7 @@ router.get(
           return res
             .status(500)
             .json({
-
-              message:
-                "Lỗi server",
-
+              message: "Lỗi server",
             });
 
         }
@@ -171,6 +161,7 @@ router.get(
     );
 
   }
+
 );
 
 
@@ -211,10 +202,7 @@ router.get(
           return res
             .status(500)
             .json({
-
-              message:
-                "Lỗi server",
-
+              message: "Lỗi server",
             });
 
         }
@@ -281,10 +269,7 @@ router.get("/:id", (req, res) => {
         return res
           .status(500)
           .json({
-
-            message:
-              "Lỗi server",
-
+            message: "Lỗi server",
           });
 
       }
@@ -296,10 +281,8 @@ router.get("/:id", (req, res) => {
         return res
           .status(404)
           .json({
-
             message:
               "Không tìm thấy sự kiện",
-
           });
 
       }
@@ -314,12 +297,13 @@ router.get("/:id", (req, res) => {
 
 
 // ============================
-// CREATE EVENT (STEP 1)
+// CREATE FULL EVENT
+// STEP 3 FINAL
 // ============================
 
 router.post(
 
-  "/",
+  "/create-full",
 
   upload.single("image"),
 
@@ -341,46 +325,28 @@ router.post(
 
         seat_mode,
 
+        showtimes,
+
       } = req.body;
 
-      // VALIDATE
-      if (
-        !organizer_id ||
-        !title ||
-        !location
-      ) {
-
-        return res
-          .status(400)
-          .json({
-
-            message:
-              "Thiếu thông tin bắt buộc",
-
-          });
-
-      }
-
-      // REQUIRE IMAGE
+      // IMAGE
       if (!req.file) {
 
         return res
           .status(400)
           .json({
-
             message:
               "Banner sự kiện là bắt buộc",
-
           });
 
       }
 
       // IMAGE URL
       const image_url =
-
         `/uploads/${req.file.filename}`;
 
-      const sql = `
+      // INSERT EVENT
+      const eventSql = `
 
         INSERT INTO events
 
@@ -396,9 +362,9 @@ router.post(
 
           location,
 
-          seat_mode,
-
           image_url,
+
+          seat_mode,
 
           status
 
@@ -410,7 +376,7 @@ router.post(
 
       db.query(
 
-        sql,
+        eventSql,
 
         [
 
@@ -424,15 +390,15 @@ router.post(
 
           location,
 
-          seat_mode || "MANUAL",
-
           image_url,
 
-          "DRAFT",
+          seat_mode,
+
+          "PENDING",
 
         ],
 
-        (err, result) => {
+        (err, eventResult) => {
 
           if (err) {
 
@@ -441,21 +407,142 @@ router.post(
             return res
               .status(500)
               .json({
-
                 message:
-                  "Tạo sự kiện thất bại",
-
+                  "Tạo event thất bại",
               });
 
           }
+
+          const eventId =
+            eventResult.insertId;
+
+          // PARSE SHOWTIMES
+          const parsedShowtimes =
+            JSON.parse(showtimes);
+
+          // LOOP SHOWTIMES
+          parsedShowtimes.forEach(
+            (showtime) => {
+
+              const showtimeSql = `
+
+                INSERT INTO showtimes
+
+                (
+
+                  event_id,
+
+                  start_time,
+
+                  end_time
+
+                )
+
+                VALUES (?, ?, ?)
+
+              `;
+
+              db.query(
+
+                showtimeSql,
+
+                [
+
+                  eventId,
+
+                  showtime.start_time,
+
+                  showtime.end_time,
+
+                ],
+
+                (
+
+                  err,
+
+                  showtimeResult
+
+                ) => {
+
+                  if (err) {
+
+                    console.log(err);
+
+                    return;
+
+                  }
+
+                  const showtimeId =
+                    showtimeResult.insertId;
+
+                  // LOOP TICKETS
+                  showtime.tickets.forEach(
+                    (ticket) => {
+
+                      const ticketSql = `
+
+                        INSERT INTO ticket_types
+
+                        (
+
+                          showtime_id,
+
+                          name,
+
+                          price,
+
+                          quantity,
+
+                          sale_start,
+
+                          sale_end
+
+                        )
+
+                        VALUES (?, ?, ?, ?, ?, ?)
+
+                      `;
+
+                      db.query(
+
+                        ticketSql,
+
+                        [
+
+                          showtimeId,
+
+                          ticket.name,
+
+                          ticket.price,
+
+                          ticket.quantity,
+
+                          ticket.sale_start,
+
+                          ticket.sale_end,
+
+                        ]
+
+                      );
+
+                    }
+
+                  );
+
+                }
+
+              );
+
+            }
+
+          );
 
           res.json({
 
             message:
               "Tạo sự kiện thành công",
 
-            event_id:
-              result.insertId,
+            event_id: eventId,
 
           });
 
@@ -480,61 +567,5 @@ router.post(
 
 );
 
-
-// ============================
-// COMPLETE EVENT
-// STEP 3
-// ============================
-
-router.put(
-  "/:id/submit",
-  (req, res) => {
-
-    const sql = `
-
-      UPDATE events
-
-      SET status = 'PENDING'
-
-      WHERE id = ?
-
-    `;
-
-    db.query(
-
-      sql,
-
-      [req.params.id],
-
-      (err) => {
-
-        if (err) {
-
-          console.log(err);
-
-          return res
-            .status(500)
-            .json({
-
-              message:
-                "Lỗi submit event",
-
-            });
-
-        }
-
-        res.json({
-
-          message:
-            "Đã gửi xét duyệt",
-
-        });
-
-      }
-
-    );
-
-  }
-);
 
 module.exports = router;
