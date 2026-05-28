@@ -175,6 +175,72 @@ router.get(
 
 
 // ============================
+// ORGANIZER STATS
+// ============================
+
+router.get(
+  "/organizer/:id/stats",
+  (req, res) => {
+
+    const organizerId =
+      req.params.id;
+
+    const sql = `
+
+      SELECT
+        COUNT(*) AS totalEvents
+
+      FROM events
+
+      WHERE organizer_id = ?
+
+    `;
+
+    db.query(
+
+      sql,
+
+      [organizerId],
+
+      (err, results) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res
+            .status(500)
+            .json({
+
+              message:
+                "Lỗi server",
+
+            });
+
+        }
+
+        res.json({
+
+          totalEvents:
+            results[0]
+              .totalEvents,
+
+          totalTickets: 0,
+
+          revenue: 0,
+
+        });
+
+      }
+
+    );
+
+  }
+
+);
+
+
+// ============================
 // GET SINGLE EVENT
 // ============================
 
@@ -469,72 +535,6 @@ router.put(
     );
 
   }
-);
-
-
-// ============================
-// ORGANIZER STATS
-// ============================
-
-router.get(
-  "/organizer/:id/stats",
-  (req, res) => {
-
-    const organizerId =
-      req.params.id;
-
-    const sql = `
-
-      SELECT
-        COUNT(*) AS totalEvents
-
-      FROM events
-
-      WHERE organizer_id = ?
-
-    `;
-
-    db.query(
-
-      sql,
-
-      [organizerId],
-
-      (err, results) => {
-
-        if (err) {
-
-          console.log(err);
-
-          return res
-            .status(500)
-            .json({
-
-              message:
-                "Lỗi server",
-
-            });
-
-        }
-
-        res.json({
-
-          totalEvents:
-            results[0]
-              .totalEvents,
-
-          totalTickets: 0,
-
-          revenue: 0,
-
-        });
-
-      }
-
-    );
-
-  }
-
 );
 
 module.exports = router;
