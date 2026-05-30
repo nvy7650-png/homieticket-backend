@@ -567,5 +567,214 @@ router.post(
 
 );
 
+// ============================
+// CANCEL EVENT
+// ============================
+
+router.put(
+  "/:id/cancel",
+  (req, res) => {
+
+    const sql = `
+
+      UPDATE events
+
+      SET status = 'CANCELLED'
+
+      WHERE id = ?
+
+    `;
+
+    db.query(
+
+      sql,
+
+      [req.params.id],
+
+      (err) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Hủy sự kiện thất bại",
+            });
+
+        }
+
+        res.json({
+          message:
+            "Đã hủy sự kiện",
+        });
+
+      }
+
+    );
+
+  }
+);
+
+
+// ============================
+// ADMIN APPROVE EVENT
+// ============================
+
+router.put(
+  "/:id/approve",
+  (req, res) => {
+
+    const sql = `
+
+      UPDATE events
+
+      SET status = 'APPROVED'
+
+      WHERE id = ?
+
+    `;
+
+    db.query(
+
+      sql,
+
+      [req.params.id],
+
+      (err) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Duyệt sự kiện thất bại",
+            });
+
+        }
+
+        res.json({
+          message:
+            "Đã duyệt sự kiện",
+        });
+
+      }
+
+    );
+
+  }
+);
+
+
+// ============================
+// ADMIN REJECT EVENT
+// ============================
+
+router.put(
+  "/:id/reject",
+  (req, res) => {
+
+    const sql = `
+
+      UPDATE events
+
+      SET status = 'CANCELLED'
+
+      WHERE id = ?
+
+    `;
+
+    db.query(
+
+      sql,
+
+      [req.params.id],
+
+      (err) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Từ chối sự kiện thất bại",
+            });
+
+        }
+
+        res.json({
+          message:
+            "Đã từ chối sự kiện",
+        });
+
+      }
+
+    );
+
+  }
+);
+
+
+// ============================
+// ADMIN GET ALL EVENTS
+// ============================
+
+router.get(
+  "/admin/all",
+  (req, res) => {
+
+    const sql = `
+
+      SELECT
+
+        events.*,
+
+        categories.name
+        AS category_name
+
+      FROM events
+
+      LEFT JOIN categories
+
+      ON events.category_id =
+      categories.id
+
+      ORDER BY events.id DESC
+
+    `;
+
+    db.query(
+      sql,
+      (err, results) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Lỗi server",
+            });
+
+        }
+
+        res.json(results);
+
+      }
+    );
+
+  }
+);
+
 
 module.exports = router;
