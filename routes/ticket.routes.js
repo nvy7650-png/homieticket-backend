@@ -13,15 +13,29 @@ router.get("/organizer/:organizerId", (req, res) => {
       events.id AS event_id,
       events.title,
       events.status,
-      COALESCE(COUNT(tickets.id), 0) AS total_tickets,
-      COALESCE(SUM(
-        CASE WHEN tickets.status IN ('VALID','USED') THEN 1 ELSE 0 END
-      ), 0) AS sold_tickets
+      COALESCE(
+        CASE WHEN events.seat_mode = 'MANUAL' THEN (
+          SELECT COUNT(s.id)
+          FROM zones z
+          JOIN seats s ON s.zone_id = z.id
+          WHERE z.event_id = events.id
+        ) ELSE (
+          SELECT COUNT(tk.id) FROM tickets tk WHERE tk.event_id = events.id
+        ) END
+      , 0) AS total_tickets,
+      COALESCE(
+        CASE WHEN events.seat_mode = 'MANUAL' THEN (
+          SELECT COUNT(s2.id)
+          FROM zones z2
+          JOIN seats s2 ON s2.zone_id = z2.id
+          WHERE z2.event_id = events.id AND s2.status = 'SOLD'
+        ) ELSE (
+          SELECT COALESCE(SUM(CASE WHEN tk2.status IN ('VALID','USED') THEN 1 ELSE 0 END), 0)
+          FROM tickets tk2 WHERE tk2.event_id = events.id
+        ) END
+      , 0) AS sold_tickets
     FROM events
-    LEFT JOIN tickets
-      ON tickets.event_id = events.id
     WHERE events.organizer_id = ?
-    GROUP BY events.id, events.title, events.status
     ORDER BY events.id DESC
   `;
 
