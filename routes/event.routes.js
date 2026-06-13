@@ -568,6 +568,78 @@ router.post(
 );
 
 // ============================
+// UPDATE EVENT
+// ============================
+
+router.put(
+  "/:id",
+  (req, res) => {
+
+    const {
+      category_id,
+      title,
+      description,
+      location,
+    } = req.body;
+
+    const sql = `
+
+      UPDATE events
+
+      SET
+
+        category_id = ?,
+        title = ?,
+        description = ?,
+        location = ?,
+        status = 'PENDING'
+
+      WHERE id = ?
+
+    `;
+
+    db.query(
+
+      sql,
+
+      [
+        category_id,
+        title,
+        description,
+        location,
+        req.params.id,
+      ],
+
+      (err) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Cập nhật thất bại",
+            });
+
+        }
+
+        res.json({
+
+          message:
+            "Cập nhật thành công",
+
+        });
+
+      }
+
+    );
+
+  }
+);
+
+// ============================
 // CANCEL EVENT
 // ============================
 
