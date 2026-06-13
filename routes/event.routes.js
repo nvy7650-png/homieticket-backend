@@ -759,6 +759,11 @@ router.post(
           const parsedShowtimes =
             JSON.parse(showtimes);
 
+          console.log("========== CREATE FULL ==========");
+          console.log("TITLE:", title);
+          console.log("SHOWTIMES:", parsedShowtimes);
+          console.log("ZONES:", parsedZones);
+
           console.log("SHOWTIMES RECEIVED:");
           console.log(parsedShowtimes);
 
