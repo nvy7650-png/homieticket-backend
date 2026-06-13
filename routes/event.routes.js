@@ -438,14 +438,12 @@ router.get("/:eventId/seatmap", (req, res) => {
       const zonesSql = `
 
         SELECT
-
-          id,
-
-          name,
-
-          price
-
-        FROM zones
+  id,
+  name,
+  price,
+  zone_type,
+  capacity
+FROM zones
 
         WHERE event_id = ?
 
@@ -668,142 +666,100 @@ router.post(
           const eventId =
             eventResult.insertId;
 
-          const parsedZones =
-            JSON.parse(zones || "[]");
+          const parsedZones = JSON.parse(zones || "[]");
 
-          if (seat_mode === "MANUAL") {
+          // Always insert zones for both MANUAL and AUTO
+          parsedZones.forEach((zone) => {
 
-            parsedZones.forEach(
-              (zone) => {
+            const zoneType =
+              seat_mode === "MANUAL"
+                ? "SEATING"
+                : (zone.zone_type || "SEATING");
 
-                const zoneSql = `
+            const capacity =
+              zoneType === "STANDING"
+                ? Number(zone.capacity || 0)
+                : Number(zone.rows || 0) * Number(zone.seatsPerRow || 0);
 
-                  INSERT INTO zones
+            const zoneSql = `
 
-                  (
+              INSERT INTO zones
 
-                    event_id,
+              (
 
-                    name,
+                event_id,
 
-                    price,
+                name,
 
-                    capacity
+                price,
 
-                  )
+                capacity,
 
-                  VALUES (?, ?, ?, ?)
+                zone_type,
 
-                `;
+                rows,
 
-                db.query(
+                seats_per_row
 
-                  zoneSql,
+              )
 
-                  [
+              VALUES (?, ?, ?, ?, ?, ?, ?)
 
-                    eventId,
+            `;
 
-                    zone.name,
+            db.query(zoneSql, [eventId, zone.name, zone.price, capacity, zoneType, Number(zone.rows || 0), Number(zone.seatsPerRow || 0)], (err, zoneResult) => {
+              if (err) {
+                console.log(err);
+                return;
+              }
 
-                    zone.price,
+              const zoneId = zoneResult.insertId;
 
-                    Number(zone.rows) *
-                    Number(zone.seatsPerRow),
+              // For MANUAL mode, create seat rows and seats
+              if (seat_mode === "MANUAL") {
 
-                  ],
+                const rows = Number(zone.rows);
+                const seatsPerRow = Number(zone.seatsPerRow);
 
-                  (err, zoneResult) => {
+                for (let rowIndex = 0; rowIndex < rows; rowIndex++) {
 
-                    if (err) {
+                  const rowLabel = String.fromCharCode(65 + rowIndex);
 
-                      console.log(err);
+                  for (let seatNumber = 1; seatNumber <= seatsPerRow; seatNumber++) {
 
-                      return;
+                    const seatSql = `
 
-                    }
+                      INSERT INTO seats
 
-                    const zoneId =
-                      zoneResult.insertId;
+                      (
 
-                    const rows =
-                      Number(zone.rows);
+                        zone_id,
 
-                    const seatsPerRow =
-                      Number(zone.seatsPerRow);
+                        row_label,
 
-                    for (
-                      let rowIndex = 0;
-                      rowIndex < rows;
-                      rowIndex++
-                    ) {
+                        seat_number,
 
-                      const rowLabel =
-                        String.fromCharCode(
-                          65 + rowIndex
-                        );
+                        seat_code,
 
-                      for (
-                        let seatNumber = 1;
-                        seatNumber <= seatsPerRow;
-                        seatNumber++
-                      ) {
+                        status
 
-                        const seatSql = `
+                      )
 
-                          INSERT INTO seats
+                      VALUES (?, ?, ?, ?, ?)
 
-                          (
+                    `;
 
-                            zone_id,
-
-                            row_label,
-
-                            seat_number,
-
-                            seat_code,
-
-                            status
-
-                          )
-
-                          VALUES (?, ?, ?, ?, ?)
-
-                        `;
-
-                        db.query(
-
-                          seatSql,
-
-                          [
-
-                            zoneId,
-
-                            rowLabel,
-
-                            seatNumber,
-
-                            `${rowLabel}${seatNumber}`,
-
-                            "AVAILABLE",
-
-                          ]
-
-                        );
-
-                      }
-
-                    }
+                    db.query(seatSql, [zoneId, rowLabel, seatNumber, `${rowLabel}${seatNumber}`, "AVAILABLE"]);
 
                   }
 
-                );
+                }
 
               }
 
-            );
+            });
 
-          }
+          });
 
           // PARSE SHOWTIMES
           const parsedShowtimes =
