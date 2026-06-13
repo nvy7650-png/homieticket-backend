@@ -707,6 +707,8 @@ router.post(
                 return;
               }
 
+              console.log("ZONE INSERT OK", zoneResult.insertId);
+
               const zoneId = zoneResult.insertId;
 
               // For MANUAL mode, create seat rows and seats
@@ -820,6 +822,8 @@ router.post(
                     return;
 
                   }
+
+                  console.log("SHOWTIME INSERT OK", showtimeResult.insertId);
 
                   const showtimeId =
                     showtimeResult.insertId;
