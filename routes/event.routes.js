@@ -442,7 +442,9 @@ router.get("/:eventId/seatmap", (req, res) => {
   name,
   price,
   zone_type,
-  capacity
+  capacity,
+  total_rows,
+  seats_per_row
 FROM zones
 
         WHERE event_id = ?
@@ -697,7 +699,7 @@ router.post(
 
                 zone_type,
 
-                rows,
+                total_rows,
 
                 seats_per_row
 
