@@ -444,7 +444,9 @@ router.get("/:eventId/seatmap", (req, res) => {
   zone_type,
   capacity,
   total_rows,
-  seats_per_row
+  seats_per_row,
+  sale_start,
+  sale_end
 FROM zones
 
         WHERE event_id = ?
@@ -684,32 +686,22 @@ router.post(
                 : Number(zone.rows || 0) * Number(zone.seatsPerRow || 0);
 
             const zoneSql = `
-
               INSERT INTO zones
-
               (
-
                 event_id,
-
                 name,
-
                 price,
-
                 capacity,
-
                 zone_type,
-
                 total_rows,
-
-                seats_per_row
-
+                seats_per_row,
+                sale_start,
+                sale_end
               )
-
-              VALUES (?, ?, ?, ?, ?, ?, ?)
-
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
-            db.query(zoneSql, [eventId, zone.name, zone.price, capacity, zoneType, Number(zone.rows || 0), Number(zone.seatsPerRow || 0)], (err, zoneResult) => {
+            db.query(zoneSql, [eventId, zone.name, zone.price, capacity, zoneType, Number(zone.rows || 0), Number(zone.seatsPerRow || 0), zone.sale_start, zone.sale_end], (err, zoneResult) => {
               if (err) {
                 console.log(err);
                 return;
@@ -767,9 +759,14 @@ router.post(
           const parsedShowtimes =
             JSON.parse(showtimes);
 
+          console.log("SHOWTIMES RECEIVED:");
+          console.log(parsedShowtimes);
+
           // LOOP SHOWTIMES
           parsedShowtimes.forEach(
             (showtime) => {
+
+              console.log("INSERT SHOWTIME:", showtime);
 
               const showtimeSql = `
 
@@ -821,60 +818,6 @@ router.post(
 
                   const showtimeId =
                     showtimeResult.insertId;
-
-                  // LOOP TICKETS
-                  showtime.tickets.forEach(
-                    (ticket) => {
-
-                      const ticketSql = `
-
-                        INSERT INTO ticket_types
-
-                        (
-
-                          showtime_id,
-
-                          name,
-
-                          price,
-
-                          quantity,
-
-                          sale_start,
-
-                          sale_end
-
-                        )
-
-                        VALUES (?, ?, ?, ?, ?, ?)
-
-                      `;
-
-                      db.query(
-
-                        ticketSql,
-
-                        [
-
-                          showtimeId,
-
-                          ticket.name,
-
-                          ticket.price,
-
-                          ticket.quantity,
-
-                          ticket.sale_start,
-
-                          ticket.sale_end,
-
-                        ]
-
-                      );
-
-                    }
-
-                  );
 
                 }
 
