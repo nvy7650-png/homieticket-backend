@@ -19,6 +19,8 @@ const categoryRoutes =
 
 const adminRoutes =
   require("./routes/admin.routes");
+const ticketRoutes =
+  require("./routes/ticket.routes");
 
 const app = express();
 
@@ -80,6 +82,11 @@ app.use(
   adminRoutes
 );
 
+// TICKETS
+app.use(
+  "/api/tickets",
+  ticketRoutes
+);
 
 // ============================
 // TEST API

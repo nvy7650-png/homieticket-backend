@@ -297,6 +297,256 @@ router.get("/:id", (req, res) => {
 
 
 // ============================
+// GET EVENT SEATS
+// ============================
+
+router.get("/:eventId/seats", (req, res) => {
+
+  const sql = `
+
+    SELECT
+
+      seats.id
+      AS seat_id,
+
+      zones.id
+      AS zone_id,
+
+      zones.name
+      AS zone_name,
+
+      zones.price,
+
+      seats.row_label,
+
+      seats.seat_number,
+
+      seats.seat_code,
+
+      seats.status
+
+    FROM events
+
+    JOIN zones
+
+    ON zones.event_id =
+    events.id
+
+    JOIN seats
+
+    ON seats.zone_id =
+    zones.id
+
+    WHERE events.id = ?
+
+    ORDER BY
+
+      zone_id,
+
+      seats.row_label,
+
+      seats.seat_number
+
+  `;
+
+  db.query(
+
+    sql,
+
+    [req.params.eventId],
+
+    (err, results) => {
+
+      if (err) {
+
+        console.log(err);
+
+        return res
+          .status(500)
+          .json({
+            message: "Lỗi server",
+          });
+
+      }
+
+      res.json(results);
+
+    }
+
+  );
+
+});
+
+
+// ============================
+// GET EVENT SEATMAP
+// ============================
+
+router.get("/:eventId/seatmap", (req, res) => {
+
+  const eventId =
+    req.params.eventId;
+
+  const eventSql = `
+
+    SELECT
+
+      id,
+
+      title,
+
+      location,
+
+      image_url
+
+    FROM events
+
+    WHERE id = ?
+
+  `;
+
+  db.query(
+
+    eventSql,
+
+    [eventId],
+
+    (err, eventResults) => {
+
+      if (err) {
+
+        console.log(err);
+
+        return res
+          .status(500)
+          .json({
+            message: "Lỗi server",
+          });
+
+      }
+
+      if (eventResults.length === 0) {
+
+        return res
+          .status(404)
+          .json({
+            message: "Không tìm thấy sự kiện",
+          });
+
+      }
+
+      const zonesSql = `
+
+        SELECT
+
+          id,
+
+          name,
+
+          price
+
+        FROM zones
+
+        WHERE event_id = ?
+
+        ORDER BY id
+
+      `;
+
+      db.query(
+
+        zonesSql,
+
+        [eventId],
+
+        (err, zoneResults) => {
+
+          if (err) {
+
+            console.log(err);
+
+            return res
+              .status(500)
+              .json({
+                message: "Lỗi server",
+              });
+
+          }
+
+          const seatsSql = `
+
+            SELECT
+
+              seats.*
+
+            FROM seats
+
+            JOIN zones
+
+            ON seats.zone_id =
+            zones.id
+
+            WHERE zones.event_id = ?
+
+            ORDER BY
+
+              seats.zone_id,
+
+              seats.row_label,
+
+              seats.seat_number
+
+          `;
+
+          db.query(
+
+            seatsSql,
+
+            [eventId],
+
+            (err, seatResults) => {
+
+              if (err) {
+
+                console.log(err);
+
+                return res
+                  .status(500)
+                  .json({
+                    message: "Lỗi server",
+                  });
+
+              }
+
+              res.json({
+
+                event:
+                  eventResults[0],
+
+                zones:
+                  zoneResults,
+
+                seats:
+                  seatResults,
+
+              });
+
+            }
+
+          );
+
+        }
+
+      );
+
+    }
+
+  );
+
+});
+
+
+// ============================
 // CREATE FULL EVENT
 // STEP 3 FINAL
 // ============================
@@ -326,6 +576,8 @@ router.post(
         seat_mode,
 
         showtimes,
+
+        zones,
 
       } = req.body;
 
@@ -415,6 +667,143 @@ router.post(
 
           const eventId =
             eventResult.insertId;
+
+          const parsedZones =
+            JSON.parse(zones || "[]");
+
+          if (seat_mode === "MANUAL") {
+
+            parsedZones.forEach(
+              (zone) => {
+
+                const zoneSql = `
+
+                  INSERT INTO zones
+
+                  (
+
+                    event_id,
+
+                    name,
+
+                    price,
+
+                    capacity
+
+                  )
+
+                  VALUES (?, ?, ?, ?)
+
+                `;
+
+                db.query(
+
+                  zoneSql,
+
+                  [
+
+                    eventId,
+
+                    zone.name,
+
+                    zone.price,
+
+                    Number(zone.rows) *
+                    Number(zone.seatsPerRow),
+
+                  ],
+
+                  (err, zoneResult) => {
+
+                    if (err) {
+
+                      console.log(err);
+
+                      return;
+
+                    }
+
+                    const zoneId =
+                      zoneResult.insertId;
+
+                    const rows =
+                      Number(zone.rows);
+
+                    const seatsPerRow =
+                      Number(zone.seatsPerRow);
+
+                    for (
+                      let rowIndex = 0;
+                      rowIndex < rows;
+                      rowIndex++
+                    ) {
+
+                      const rowLabel =
+                        String.fromCharCode(
+                          65 + rowIndex
+                        );
+
+                      for (
+                        let seatNumber = 1;
+                        seatNumber <= seatsPerRow;
+                        seatNumber++
+                      ) {
+
+                        const seatSql = `
+
+                          INSERT INTO seats
+
+                          (
+
+                            zone_id,
+
+                            row_label,
+
+                            seat_number,
+
+                            seat_code,
+
+                            status
+
+                          )
+
+                          VALUES (?, ?, ?, ?, ?)
+
+                        `;
+
+                        db.query(
+
+                          seatSql,
+
+                          [
+
+                            zoneId,
+
+                            rowLabel,
+
+                            seatNumber,
+
+                            `${rowLabel}${seatNumber}`,
+
+                            "AVAILABLE",
+
+                          ]
+
+                        );
+
+                      }
+
+                    }
+
+                  }
+
+                );
+
+              }
+
+            );
+
+          }
 
           // PARSE SHOWTIMES
           const parsedShowtimes =
