@@ -672,6 +672,15 @@ router.post(
 
           const parsedZones = JSON.parse(zones || "[]");
 
+          const formatMySQLDateTime = (value) => {
+            if (!value) return null;
+
+            return new Date(value)
+              .toISOString()
+              .slice(0, 19)
+              .replace("T", " ");
+          };
+
           // Always insert zones for both MANUAL and AUTO
           parsedZones.forEach((zone) => {
 
@@ -701,7 +710,7 @@ router.post(
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
 
-            db.query(zoneSql, [eventId, zone.name, zone.price, capacity, zoneType, Number(zone.rows || 0), Number(zone.seatsPerRow || 0), zone.sale_start, zone.sale_end], (err, zoneResult) => {
+            db.query(zoneSql, [eventId, zone.name, zone.price, capacity, zoneType, Number(zone.rows || 0), Number(zone.seatsPerRow || 0), formatMySQLDateTime(zone.sale_start), formatMySQLDateTime(zone.sale_end)], (err, zoneResult) => {
               if (err) {
                 console.log(err);
                 return;
@@ -801,9 +810,10 @@ router.post(
 
                   eventId,
 
-                  showtime.start_time,
 
-                  showtime.end_time,
+                  formatMySQLDateTime(showtime.start_time),
+
+                  formatMySQLDateTime(showtime.end_time),
 
                 ],
 
