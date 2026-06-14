@@ -20,7 +20,7 @@ router.get("/organizer/:organizerId", (req, res) => {
           JOIN seats s ON s.zone_id = z.id
           WHERE z.event_id = events.id
         ) ELSE (
-          SELECT COUNT(tk.id) FROM tickets tk WHERE tk.event_id = events.id
+          SELECT COALESCE(SUM(z.capacity), 0) FROM zones z WHERE z.event_id = events.id
         ) END
       , 0) AS total_tickets,
       COALESCE(
