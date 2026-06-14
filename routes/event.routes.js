@@ -53,6 +53,45 @@ const upload = multer({
   storage,
 });
 
+// GET ALL APPROVED EVENTS (HOMEPAGE)
+router.get("/", (req, res) => {
+
+  const sql = `
+
+    SELECT
+
+      events.*,
+
+      categories.name AS category_name
+
+    FROM events
+
+    LEFT JOIN categories
+
+    ON events.category_id = categories.id
+
+    WHERE events.status = 'APPROVED'
+
+    ORDER BY events.id DESC
+
+  `;
+
+  db.query(sql, (err, results) => {
+
+    if (err) {
+
+      console.log(err);
+
+      return res.status(500).json({ message: "Lỗi server" });
+
+    }
+
+    res.json(results);
+
+  });
+
+});
+
 
 // ============================
 // GET ALL APPROVED EVENTS
