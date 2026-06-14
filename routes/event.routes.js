@@ -59,7 +59,7 @@ const upload = multer({
 // HOMEPAGE
 // ============================
 
-router.get("/", (req, res) => {
+router.get('/:id', (req, res) => {
 
   const sql = `
 
@@ -77,92 +77,94 @@ router.get("/", (req, res) => {
     ON events.category_id =
     categories.id
 
-    WHERE events.status = 'APPROVED'
-
-    ORDER BY events.id DESC
+    WHERE events.id = ?
 
   `;
 
-  db.query(sql, (err, results) => {
+  db.query(
 
-    if (err) {
+    sql,
 
-      console.log(err);
+    [req.params.id],
 
-      return res
-        .status(500)
-        .json({
-          message: "Lỗi server",
-        });
+    (err, results) => {
 
-    }
+      if (err) {
 
-    res.json(results);
+        console.log(err);
 
-  });
-
-});
-
-
-// ============================
-// ORGANIZER EVENTS
-// ============================
-
-router.get(
-  "/organizer/:id",
-  (req, res) => {
-
-    const sql = `
-
-      SELECT
-
-        events.*,
-
-        categories.name
-        AS category_name
-
-      FROM events
-
-      LEFT JOIN categories
-
-      ON events.category_id =
-      categories.id
-
-      WHERE organizer_id = ?
-
-      ORDER BY events.id DESC
-
-    `;
-
-    db.query(
-
-      sql,
-
-      [req.params.id],
-
-      (err, results) => {
-
-        if (err) {
-
-          console.log(err);
-
-          return res
-            .status(500)
-            .json({
-              message: "Lỗi server",
-            });
-
-        }
-
-        res.json(results);
+        return res
+          .status(500)
+          .json({
+            message: "Lỗi server",
+          });
 
       }
 
-    );
+      if (
+        results.length === 0
+      ) {
 
-  }
+        return res
+          .status(404)
+          .json({
+            message:
+              "Không tìm thấy sự kiện",
+          });
 
-);
+      }
+
+      const event = results[0];
+
+      const showtimesSql = `
+        SELECT *
+        FROM showtimes
+        WHERE event_id = ?
+      `;
+
+      db.query(showtimesSql, [req.params.id], (err2, showtimeResults) => {
+        if (err2) {
+          console.log(err2);
+          return res.status(500).json({ message: "Lỗi server" });
+        }
+
+        const zonesSql = `
+          SELECT
+            id,
+            name,
+            price,
+            capacity,
+            zone_type,
+            total_rows,
+            seats_per_row,
+            sale_start,
+            sale_end
+          FROM zones
+          WHERE event_id = ?
+          ORDER BY id
+        `;
+
+        db.query(zonesSql, [req.params.id], (err3, zoneResults) => {
+          if (err3) {
+            console.log(err3);
+            return res.status(500).json({ message: "Lỗi server" });
+          }
+
+          res.json({
+            event: event,
+            showtimes: showtimeResults,
+            zones: zoneResults,
+          });
+
+        });
+
+      });
+
+    }
+
+  );
+
+});
 
 
 // ============================
@@ -1056,52 +1058,6 @@ router.put(
 // ADMIN REJECT EVENT
 // ============================
 
-router.put(
-  "/:id/reject",
-  (req, res) => {
-
-    const sql = `
-
-      UPDATE events
-
-      SET status = 'CANCELLED'
-
-      WHERE id = ?
-
-    `;
-
-    db.query(
-
-      sql,
-
-      [req.params.id],
-
-      (err) => {
-
-        if (err) {
-
-          console.log(err);
-
-          return res
-            .status(500)
-            .json({
-              message:
-                "Từ chối sự kiện thất bại",
-            });
-
-        }
-
-        res.json({
-          message:
-            "Đã từ chối sự kiện",
-        });
-
-      }
-
-    );
-
-  }
-);
 
 
 // ============================
