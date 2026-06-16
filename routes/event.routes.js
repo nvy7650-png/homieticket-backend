@@ -53,45 +53,6 @@ const upload = multer({
   storage,
 });
 
-// GET ALL APPROVED EVENTS (HOMEPAGE)
-router.get("/", (req, res) => {
-
-  const sql = `
-
-    SELECT
-
-      events.*,
-
-      categories.name AS category_name
-
-    FROM events
-
-    LEFT JOIN categories
-
-    ON events.category_id = categories.id
-
-    WHERE events.status = 'APPROVED'
-
-    ORDER BY events.id DESC
-
-  `;
-
-  db.query(sql, (err, results) => {
-
-    if (err) {
-
-      console.log(err);
-
-      return res.status(500).json({ message: "Lỗi server" });
-
-    }
-
-    res.json(results);
-
-  });
-
-});
-
 
 // ============================
 // GET ALL APPROVED EVENTS
@@ -189,97 +150,11 @@ router.get('/:id', (req, res) => {
             return res.status(500).json({ message: "Lỗi server" });
           }
 
-          // Enrich each zone with sold_count and remaining
-          let zIdx = 0;
-
-          function processZone() {
-
-            if (zIdx >= zoneResults.length) {
-
-              return res.json({
-
-                event: event,
-
-                showtimes: showtimeResults,
-
-                zones: zoneResults,
-
-              });
-
-            }
-
-            const zone = zoneResults[zIdx++];
-
-            // Use event.seat_mode to decide calculation method
-            const seatMode = (event.seat_mode || "AUTO").toUpperCase();
-
-            if (seatMode === "MANUAL") {
-
-              // MANUAL: use seats table counts
-              const seatsCountSql = `
-                SELECT
-                  COUNT(*) AS total,
-                  SUM(CASE WHEN status = 'SOLD' THEN 1 ELSE 0 END) AS sold
-                FROM seats
-                WHERE zone_id = ?
-              `;
-
-              db.query(seatsCountSql, [zone.id], (sErr, sRes) => {
-
-                if (sErr) {
-
-                  console.log(sErr);
-
-                  return res.status(500).json({ message: "Lỗi server" });
-
-                }
-
-                const total = (sRes && sRes[0] && Number(sRes[0].total)) || 0;
-                const sold = (sRes && sRes[0] && Number(sRes[0].sold)) || 0;
-
-                zone.sold_count = sold;
-                zone.remaining = total - sold;
-
-                processZone();
-
-              });
-
-            } else {
-
-              // AUTO: use tickets table for sold count, remaining = capacity - sold
-              const soldTicketsSql = `
-                SELECT
-                  COUNT(*) AS sold
-                FROM tickets
-                WHERE zone_id = ?
-                AND status IN ('VALID','USED')
-              `;
-
-              db.query(soldTicketsSql, [zone.id], (tErr, tRes) => {
-
-                if (tErr) {
-
-                  console.log(tErr);
-
-                  return res.status(500).json({ message: "Lỗi server" });
-
-                }
-
-                const sold = (tRes && tRes[0] && Number(tRes[0].sold)) || 0;
-                const capacity = Number(zone.capacity || 0);
-
-                zone.sold_count = sold;
-                zone.remaining = capacity - sold;
-
-                processZone();
-
-              });
-
-            }
-
-          }
-
-          processZone();
+          res.json({
+            event: event,
+            showtimes: showtimeResults,
+            zones: zoneResults,
+          });
 
         });
 
@@ -450,10 +325,8 @@ router.get("/:eventId/seats", (req, res) => {
 
       seats.seat_code,
 
-      th.status AS hold_status,
-
-      seats.status
-
+      'AVAILABLE' AS status
+      
     FROM events
 
     JOIN zones
@@ -465,11 +338,6 @@ router.get("/:eventId/seats", (req, res) => {
 
     ON seats.zone_id =
     zones.id
-
-    LEFT JOIN ticket_holds th
-    ON th.seat_id = seats.id
-    AND th.status = 'ACTIVE'
-    AND th.expires_at > NOW()
 
     WHERE events.id = ?
 
@@ -880,15 +748,13 @@ router.post(
 
                         seat_code,
 
-                        status
-
                       )
 
-                      VALUES (?, ?, ?, ?, ?)
+                      VALUES (?, ?, ?, ?)
 
                     `;
 
-                    db.query(seatSql, [zoneId, rowLabel, seatNumber, `${rowLabel}${seatNumber}`, "AVAILABLE"]);
+                    db.query(seatSql, [zoneId, rowLabel, seatNumber, `${rowLabel}${seatNumber}`]);
 
                   }
 
@@ -971,69 +837,6 @@ router.post(
 
                   const showtimeId =
                     showtimeResult.insertId;
-
-                  // After creating a showtime, create per-showtime seat rows and standing inventory
-                  // Fetch zones for this event
-                  const fetchZonesSql = `
-                    SELECT id, zone_type, capacity
-                    FROM zones
-                    WHERE event_id = ?
-                  `;
-
-                  db.query(fetchZonesSql, [eventId], (fzErr, fzResults) => {
-                    if (fzErr) {
-                      console.log(fzErr);
-                      return;
-                    }
-
-                    fzResults.forEach((z) => {
-
-                      if (z.zone_type === 'SEATING') {
-
-                        // For seating zones, create one row per seat in showtime_seats
-                        const fetchSeatsSql = `
-                          SELECT id FROM seats WHERE zone_id = ?
-                        `;
-
-                        db.query(fetchSeatsSql, [z.id], (fsErr, seats) => {
-                          if (fsErr) {
-                            console.log(fsErr);
-                            return;
-                          }
-
-                          seats.forEach((s) => {
-                            const insertShowtimeSeat = `
-                              INSERT INTO showtime_seats
-                                (showtime_id, seat_id, zone_id, status)
-                              VALUES (?, ?, ?, 'AVAILABLE')
-                            `;
-
-                            db.query(insertShowtimeSeat, [showtimeId, s.id, z.id], (insErr) => {
-                              if (insErr) console.log(insErr);
-                            });
-
-                          });
-
-                        });
-
-                      } else {
-
-                        // STANDING: create inventory row for this showtime and zone
-                        const insertStandingSql = `
-                          INSERT INTO showtime_standing_inventory
-                            (showtime_id, zone_id, capacity, sold_count)
-                          VALUES (?, ?, ?, 0)
-                        `;
-
-                        db.query(insertStandingSql, [showtimeId, z.id, Number(z.capacity || 0)], (insErr) => {
-                          if (insErr) console.log(insErr);
-                        });
-
-                      }
-
-                    });
-
-                  });
 
                 }
 
