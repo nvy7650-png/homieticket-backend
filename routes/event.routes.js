@@ -210,8 +210,12 @@ router.get('/:id', (req, res) => {
 
             const zone = zoneResults[zIdx++];
 
-            if (zone.zone_type === "SEATING") {
+            // Use event.seat_mode to decide calculation method
+            const seatMode = (event.seat_mode || "AUTO").toUpperCase();
 
+            if (seatMode === "MANUAL") {
+
+              // MANUAL: use seats table counts
               const seatsCountSql = `
                 SELECT
                   COUNT(*) AS total,
@@ -242,7 +246,7 @@ router.get('/:id', (req, res) => {
 
             } else {
 
-              // STANDING
+              // AUTO: use tickets table for sold count, remaining = capacity - sold
               const soldTicketsSql = `
                 SELECT
                   COUNT(*) AS sold
