@@ -450,6 +450,8 @@ router.get("/:eventId/seats", (req, res) => {
 
       seats.seat_code,
 
+      th.status AS hold_status,
+
       seats.status
 
     FROM events
@@ -463,6 +465,11 @@ router.get("/:eventId/seats", (req, res) => {
 
     ON seats.zone_id =
     zones.id
+
+    LEFT JOIN ticket_holds th
+    ON th.seat_id = seats.id
+    AND th.status = 'ACTIVE'
+    AND th.expires_at > NOW()
 
     WHERE events.id = ?
 
@@ -964,6 +971,69 @@ router.post(
 
                   const showtimeId =
                     showtimeResult.insertId;
+
+                  // After creating a showtime, create per-showtime seat rows and standing inventory
+                  // Fetch zones for this event
+                  const fetchZonesSql = `
+                    SELECT id, zone_type, capacity
+                    FROM zones
+                    WHERE event_id = ?
+                  `;
+
+                  db.query(fetchZonesSql, [eventId], (fzErr, fzResults) => {
+                    if (fzErr) {
+                      console.log(fzErr);
+                      return;
+                    }
+
+                    fzResults.forEach((z) => {
+
+                      if (z.zone_type === 'SEATING') {
+
+                        // For seating zones, create one row per seat in showtime_seats
+                        const fetchSeatsSql = `
+                          SELECT id FROM seats WHERE zone_id = ?
+                        `;
+
+                        db.query(fetchSeatsSql, [z.id], (fsErr, seats) => {
+                          if (fsErr) {
+                            console.log(fsErr);
+                            return;
+                          }
+
+                          seats.forEach((s) => {
+                            const insertShowtimeSeat = `
+                              INSERT INTO showtime_seats
+                                (showtime_id, seat_id, zone_id, status)
+                              VALUES (?, ?, ?, 'AVAILABLE')
+                            `;
+
+                            db.query(insertShowtimeSeat, [showtimeId, s.id, z.id], (insErr) => {
+                              if (insErr) console.log(insErr);
+                            });
+
+                          });
+
+                        });
+
+                      } else {
+
+                        // STANDING: create inventory row for this showtime and zone
+                        const insertStandingSql = `
+                          INSERT INTO showtime_standing_inventory
+                            (showtime_id, zone_id, capacity, sold_count)
+                          VALUES (?, ?, ?, 0)
+                        `;
+
+                        db.query(insertStandingSql, [showtimeId, z.id, Number(z.capacity || 0)], (insErr) => {
+                          if (insErr) console.log(insErr);
+                        });
+
+                      }
+
+                    });
+
+                  });
 
                 }
 

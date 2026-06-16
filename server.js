@@ -21,6 +21,7 @@ const adminRoutes =
   require("./routes/admin.routes");
 const ticketRoutes =
   require("./routes/ticket.routes");
+const holdRoutes = require("./routes/hold.routes");
 const orderRoutes =
   require("./routes/order.routes");
 
@@ -96,6 +97,12 @@ app.use(
 app.use(
   "/api/orders",
   orderRoutes
+);
+
+// HOLDS
+app.use(
+  "/api/holds",
+  holdRoutes
 );
 
 // ============================
