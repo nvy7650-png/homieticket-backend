@@ -189,11 +189,93 @@ router.get('/:id', (req, res) => {
             return res.status(500).json({ message: "Lỗi server" });
           }
 
-          res.json({
-            event: event,
-            showtimes: showtimeResults,
-            zones: zoneResults,
-          });
+          // Enrich each zone with sold_count and remaining
+          let zIdx = 0;
+
+          function processZone() {
+
+            if (zIdx >= zoneResults.length) {
+
+              return res.json({
+
+                event: event,
+
+                showtimes: showtimeResults,
+
+                zones: zoneResults,
+
+              });
+
+            }
+
+            const zone = zoneResults[zIdx++];
+
+            if (zone.zone_type === "SEATING") {
+
+              const seatsCountSql = `
+                SELECT
+                  COUNT(*) AS total,
+                  SUM(CASE WHEN status = 'SOLD' THEN 1 ELSE 0 END) AS sold
+                FROM seats
+                WHERE zone_id = ?
+              `;
+
+              db.query(seatsCountSql, [zone.id], (sErr, sRes) => {
+
+                if (sErr) {
+
+                  console.log(sErr);
+
+                  return res.status(500).json({ message: "Lỗi server" });
+
+                }
+
+                const total = (sRes && sRes[0] && Number(sRes[0].total)) || 0;
+                const sold = (sRes && sRes[0] && Number(sRes[0].sold)) || 0;
+
+                zone.sold_count = sold;
+                zone.remaining = total - sold;
+
+                processZone();
+
+              });
+
+            } else {
+
+              // STANDING
+              const soldTicketsSql = `
+                SELECT
+                  COUNT(*) AS sold
+                FROM tickets
+                WHERE zone_id = ?
+                AND status IN ('VALID','USED')
+              `;
+
+              db.query(soldTicketsSql, [zone.id], (tErr, tRes) => {
+
+                if (tErr) {
+
+                  console.log(tErr);
+
+                  return res.status(500).json({ message: "Lỗi server" });
+
+                }
+
+                const sold = (tRes && tRes[0] && Number(tRes[0].sold)) || 0;
+                const capacity = Number(zone.capacity || 0);
+
+                zone.sold_count = sold;
+                zone.remaining = capacity - sold;
+
+                processZone();
+
+              });
+
+            }
+
+          }
+
+          processZone();
 
         });
 

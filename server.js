@@ -21,6 +21,10 @@ const adminRoutes =
   require("./routes/admin.routes");
 const ticketRoutes =
   require("./routes/ticket.routes");
+const orderRoutes =
+  require("./routes/order.routes");
+
+
 
 const app = express();
 
@@ -86,6 +90,12 @@ app.use(
 app.use(
   "/api/tickets",
   ticketRoutes
+);
+
+// ORDERS
+app.use(
+  "/api/orders",
+  orderRoutes
 );
 
 // ============================
