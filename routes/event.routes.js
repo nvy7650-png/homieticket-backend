@@ -166,6 +166,69 @@ router.get('/:id', (req, res) => {
 
 });
 
+// ============================
+// ORGANIZER EVENTS
+// ============================
+
+router.get(
+  "/organizer/:id",
+  (req, res) => {
+
+    const organizerId =
+      req.params.id;
+
+    const sql = `
+
+      SELECT
+
+        events.*,
+
+        categories.name
+        AS category_name
+
+      FROM events
+
+      LEFT JOIN categories
+
+      ON events.category_id =
+      categories.id
+
+      WHERE events.organizer_id = ?
+
+      ORDER BY events.id DESC
+
+    `;
+
+    db.query(
+
+      sql,
+
+      [organizerId],
+
+      (err, results) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Lỗi server",
+            });
+
+        }
+
+        res.json(results);
+
+      }
+
+    );
+
+  }
+
+);
 
 // ============================
 // ORGANIZER STATS
@@ -231,74 +294,6 @@ router.get(
 
 
 // ============================
-// GET SINGLE EVENT
-// ============================
-
-router.get("/:id", (req, res) => {
-
-  const sql = `
-
-    SELECT
-
-      events.*,
-
-      categories.name
-      AS category_name
-
-    FROM events
-
-    LEFT JOIN categories
-
-    ON events.category_id =
-    categories.id
-
-    WHERE events.id = ?
-
-  `;
-
-  db.query(
-
-    sql,
-
-    [req.params.id],
-
-    (err, results) => {
-
-      if (err) {
-
-        console.log(err);
-
-        return res
-          .status(500)
-          .json({
-            message: "Lỗi server",
-          });
-
-      }
-
-      if (
-        results.length === 0
-      ) {
-
-        return res
-          .status(404)
-          .json({
-            message:
-              "Không tìm thấy sự kiện",
-          });
-
-      }
-
-      res.json(results[0]);
-
-    }
-
-  );
-
-});
-
-
-// ============================
 // GET EVENT SEATS
 // ============================
 
@@ -326,7 +321,7 @@ router.get("/:eventId/seats", (req, res) => {
       seats.seat_code,
 
       'AVAILABLE' AS status
-      
+
     FROM events
 
     JOIN zones
@@ -542,6 +537,69 @@ FROM zones
         }
 
       );
+
+    }
+
+  );
+
+});
+
+router.get("/:id", (req, res) => {
+
+  const sql = `
+
+    SELECT
+
+      events.*,
+
+      categories.name
+      AS category_name
+
+    FROM events
+
+    LEFT JOIN categories
+
+    ON events.category_id =
+    categories.id
+
+    WHERE events.id = ?
+
+  `;
+
+  db.query(
+
+    sql,
+
+    [req.params.id],
+
+    (err, results) => {
+
+      if (err) {
+
+        console.log(err);
+
+        return res
+          .status(500)
+          .json({
+            message: "Lỗi server",
+          });
+
+      }
+
+      if (
+        results.length === 0
+      ) {
+
+        return res
+          .status(404)
+          .json({
+            message:
+              "Không tìm thấy sự kiện",
+          });
+
+      }
+
+      res.json(results[0]);
 
     }
 
