@@ -613,6 +613,87 @@ router.get("/:id", (req, res) => {
 // STEP 3 FINAL
 // ============================
 
+function createShowtimeInventory(eventId, showtimeId) {
+  const seatsSql = `
+    SELECT
+      s.id AS seat_id,
+      s.zone_id
+    FROM seats s
+    JOIN zones z
+      ON z.id = s.zone_id
+    WHERE z.event_id = ?
+  `;
+
+  db.query(seatsSql, [eventId], (err, seats) => {
+    if (err) {
+      console.log(err);
+      return;
+    }
+
+    seats.forEach((seat) => {
+      db.query(
+        `
+        INSERT INTO showtime_seats
+        (
+          showtime_id,
+          seat_id,
+          zone_id,
+          status
+        )
+        VALUES (?, ?, ?, 'AVAILABLE')
+        `,
+        [
+          showtimeId,
+          seat.seat_id,
+          seat.zone_id
+        ]
+      );
+    });
+
+    const standingSql = `
+      SELECT
+        id,
+        capacity
+      FROM zones
+      WHERE event_id = ?
+        AND zone_type = 'STANDING'
+    `;
+
+    db.query(
+      standingSql,
+      [eventId],
+      (err, zones) => {
+
+        if (err) {
+          console.log(err);
+          return;
+        }
+
+        zones.forEach((zone) => {
+          db.query(
+            `
+            INSERT INTO showtime_standing_inventory
+            (
+              showtime_id,
+              zone_id,
+              capacity,
+              sold_count
+            )
+            VALUES (?, ?, ?, 0)
+            `,
+            [
+              showtimeId,
+              zone.id,
+              zone.capacity
+            ]
+          );
+        });
+
+      }
+    );
+  });
+}
+
 router.post(
 
   "/create-full",
@@ -804,7 +885,7 @@ router.post(
 
                         seat_number,
 
-                        seat_code,
+                        seat_code
 
                       )
 
@@ -893,8 +974,13 @@ router.post(
 
                   console.log("SHOWTIME INSERT OK", showtimeResult.insertId);
 
-                  const showtimeId =
-                    showtimeResult.insertId;
+                  const showtimeId = showtimeResult.insertId;
+                  setTimeout(() => {
+  createShowtimeInventory(
+    eventId,
+    showtimeId
+  );
+}, 2000);
 
                 }
 
