@@ -29,13 +29,13 @@ message: "Thiếu dữ liệu",
 const placeholders =
 seat_ids.map(() => "?").join(",");
 
-const checkSql = `     SELECT seat_id
-    FROM ticket_holds
-    WHERE showtime_id = ?
-      AND seat_id IN (${placeholders})
-      AND status = 'ACTIVE'
-      AND expires_at > NOW()
-  `;
+const checkSql = `
+SELECT seat_id
+FROM ticket_holds
+WHERE showtime_id = ?
+AND seat_id IN (${placeholders})
+AND status = 'ACTIVE'
+`;
 
 db.query(
 checkSql,
