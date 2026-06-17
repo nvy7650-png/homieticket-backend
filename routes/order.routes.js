@@ -136,23 +136,42 @@ router.post("/", (req, res) => {
 
             const it = items[idx++];
 
-            const zone_id = it.zone_id || null;
+            const showtime_id =
+  it.showtime_id || null;
 
-            const seat_id = it.seat_id || null;
+const zone_id =
+  it.zone_id || null;
 
-            const quantity = Number(it.quantity || 0);
+const seat_id =
+  it.seat_id || null;
 
-            const price = Number(it.price || 0);
+const quantity =
+  Number(it.quantity || 0);
+
+const price =
+  Number(it.price || 0);
 
             const insertItemSql = `
-              INSERT INTO order_items
-                (order_id, zone_id, seat_id, quantity, price)
-              VALUES (?, ?, ?, ?, ?)
-            `;
+  INSERT INTO order_items
+  (
+    order_id,
+    showtime_id,
+    zone_id,
+    seat_id,
+    quantity,
+    price
+  )
+  VALUES (?, ?, ?, ?, ?, ?)
+`;
 
             db.query(
               insertItemSql,
-              [orderId, zone_id, seat_id, quantity, price],
+              [orderId,
+  showtime_id,
+  zone_id,
+  seat_id,
+  quantity,
+  price],
               (itemErr) => {
 
                 if (itemErr) {
