@@ -983,7 +983,22 @@ router.post("/create-full",
               console.log("ZONE INSERT OK", zoneResult.insertId);
 
               const zoneId = zoneResult.insertId;
-              if (seat_mode === "MANUAL") {
+
+console.log(
+  "SEAT MODE:",
+  seat_mode
+);
+
+console.log(
+  "ZONE TYPE:",
+  zone.zone_type
+);
+
+if (seat_mode === "MANUAL") {
+
+  console.log(
+    "CALLING CREATE SEATS..."
+  );
 
   createSeatsForZone(
     zoneId,
