@@ -994,7 +994,7 @@ console.log(
   zone.zone_type
 );
 
-if (seat_mode === "MANUAL") {
+if (zoneType === "SEATING") {
 
   console.log(
     "CALLING CREATE SEATS..."
