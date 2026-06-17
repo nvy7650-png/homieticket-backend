@@ -42,7 +42,6 @@ checkSql,
 [showtime_id, ...seat_ids],
 (err, rows) => {
 
-```
   console.log("========== HOLD CHECK ==========");
   console.log("SHOWTIME:", showtime_id);
   console.log("SEAT_IDS:", seat_ids);
@@ -142,7 +141,6 @@ checkSql,
   );
 
 }
-```
 
 );
 
