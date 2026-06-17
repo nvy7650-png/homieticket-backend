@@ -1060,6 +1060,8 @@ router.put(
       title,
       description,
       location,
+      showtimes,
+      zones
     } = req.body;
 
     const sql = `
@@ -1105,12 +1107,106 @@ router.put(
 
         }
 
-        res.json({
 
-          message:
-            "Cập nhật thành công",
+let completedShowtimes = 0;
 
-        });
+showtimes.forEach((st) => {
+
+  db.query(
+
+    `
+      UPDATE showtimes
+      SET
+        start_time = ?,
+        end_time = ?
+      WHERE id = ?
+    `,
+
+    [
+      st.start_time,
+      st.end_time,
+      st.id,
+    ],
+
+    (err2) => {
+
+      if (err2) {
+        console.log(err2);
+      }
+
+      completedShowtimes++;
+
+      if (
+  completedShowtimes ===
+  showtimes.length
+) {
+
+  let completedZones = 0;
+
+  if (!zones || zones.length === 0) {
+
+    return res.json({
+      message:
+        "Cập nhật thành công",
+    });
+
+  }
+
+  zones.forEach((zone) => {
+
+    db.query(
+
+      `
+      UPDATE zones
+      SET
+        price = ?,
+        capacity = ?,
+        sale_start = ?,
+        sale_end = ?
+      WHERE id = ?
+      `,
+
+      [
+        zone.price,
+        zone.capacity,
+        zone.sale_start,
+        zone.sale_end,
+        zone.id,
+      ],
+
+      (err3) => {
+
+        if (err3) {
+          console.log(err3);
+        }
+
+        completedZones++;
+
+        if (
+          completedZones ===
+          zones.length
+        ) {
+
+          return res.json({
+            message:
+              "Cập nhật thành công",
+          });
+
+        }
+
+      }
+
+    );
+
+  });
+
+}
+
+    }
+
+  );
+
+});
 
       }
 
