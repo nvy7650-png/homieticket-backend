@@ -55,16 +55,17 @@ checkSql,
     });
   }
 
-  if (rows.length > 0) {
+ if (rows.length > 0) {
 
-    console.log("GHẾ ĐANG BỊ HOLD");
+  return res.status(409).json({
+    message:
+      "Một hoặc nhiều ghế đang được thanh toán",
+    seats: rows.map(
+      (row) => row.seat_id
+    ),
+  });
 
-    return res.status(409).json({
-      message:
-        "Một hoặc nhiều ghế đang được thanh toán",
-    });
-
-  }
+}
 
   const values = seat_ids.map(
     (seatId) => [
