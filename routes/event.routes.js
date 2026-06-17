@@ -103,6 +103,59 @@ router.get("/", (req, res) => {
 
 });
 
+router.get("/showtimes/:id/seats", (req, res) => {
+
+  const sql = `
+    SELECT
+
+      sts.id AS showtime_seat_id,
+      sts.status,
+
+      s.id AS seat_id,
+      s.seat_code,
+      s.row_label,
+      s.seat_number,
+
+      z.id AS zone_id,
+      z.name AS zone_name,
+      z.price
+
+    FROM showtime_seats sts
+
+    JOIN seats s
+      ON sts.seat_id = s.id
+
+    JOIN zones z
+      ON sts.zone_id = z.id
+
+    WHERE sts.showtime_id = ?
+
+    ORDER BY
+      z.id,
+      s.row_label,
+      s.seat_number
+  `;
+
+  db.query(
+    sql,
+    [req.params.id],
+    (err, results) => {
+
+      if (err) {
+        console.log(err);
+
+        return res.status(500).json({
+          message: "Lỗi server"
+        });
+      }
+
+      res.json(results);
+
+    }
+  );
+
+});
+
 router.get('/:id', (req, res) => {
 
   const sql = `
@@ -213,6 +266,7 @@ router.get('/:id', (req, res) => {
 // ============================
 // ORGANIZER EVENTS
 // ============================
+
 
 router.get(
   "/organizer/:id",
@@ -423,6 +477,7 @@ router.get("/:eventId/seats", (req, res) => {
 // GET EVENT SEATMAP
 // ============================
 
+
 router.get("/:eventId/seatmap", (req, res) => {
 
   const eventId =
@@ -620,58 +675,7 @@ router.get("/:id/showtimes", (req, res) => {
 
 });
 
-router.get("/showtimes/:id/seats", (req, res) => {
 
-  const sql = `
-    SELECT
-
-      sts.id AS showtime_seat_id,
-      sts.status,
-
-      s.id AS seat_id,
-      s.seat_code,
-      s.row_label,
-      s.seat_number,
-
-      z.id AS zone_id,
-      z.name AS zone_name,
-      z.price
-
-    FROM showtime_seats sts
-
-    JOIN seats s
-      ON sts.seat_id = s.id
-
-    JOIN zones z
-      ON sts.zone_id = z.id
-
-    WHERE sts.showtime_id = ?
-
-    ORDER BY
-      z.id,
-      s.row_label,
-      s.seat_number
-  `;
-
-  db.query(
-    sql,
-    [req.params.id],
-    (err, results) => {
-
-      if (err) {
-        console.log(err);
-
-        return res.status(500).json({
-          message: "Lỗi server"
-        });
-      }
-
-      res.json(results);
-
-    }
-  );
-
-});
 
 router.get("/:id", (req, res) => {
 
