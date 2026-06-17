@@ -295,4 +295,281 @@ router.get("/:id", (req, res) => {
 
 });
 
+// POST /api/orders/:id/pay
+router.post("/:id/pay", (req, res) => {
+
+  const orderId = req.params.id;
+
+  db.beginTransaction((txErr) => {
+
+    if (txErr) {
+      console.log(txErr);
+      return res.status(500).json({
+        message: "Lỗi server",
+      });
+    }
+
+    const orderSql = `
+      SELECT *
+      FROM orders
+      WHERE id = ?
+    `;
+
+    db.query(
+      orderSql,
+      [orderId],
+      (orderErr, orderRows) => {
+
+        if (orderErr) {
+
+          console.log(orderErr);
+
+          return db.rollback(() =>
+            res.status(500).json({
+              message: "Lỗi server",
+            })
+          );
+
+        }
+
+        if (!orderRows.length) {
+
+          return db.rollback(() =>
+            res.status(404).json({
+              message: "Không tìm thấy đơn hàng",
+            })
+          );
+
+        }
+
+        const order = orderRows[0];
+
+        if (order.status === "PAID") {
+
+          return db.rollback(() =>
+            res.json({
+              message: "Đơn hàng đã thanh toán",
+            })
+          );
+
+        }
+
+        const itemsSql = `
+          SELECT *
+          FROM order_items
+          WHERE order_id = ?
+        `;
+
+        db.query(
+          itemsSql,
+          [orderId],
+          (itemErr, items) => {
+
+            if (itemErr) {
+
+              console.log(itemErr);
+
+              return db.rollback(() =>
+                res.status(500).json({
+                  message: "Lỗi server",
+                })
+              );
+
+            }
+
+            const updateOrderSql = `
+              UPDATE orders
+              SET status = 'PAID'
+              WHERE id = ?
+            `;
+
+            db.query(
+              updateOrderSql,
+              [orderId],
+              (updateErr) => {
+
+                if (updateErr) {
+
+                  console.log(updateErr);
+
+                  return db.rollback(() =>
+                    res.status(500).json({
+                      message: "Lỗi server",
+                    })
+                  );
+
+                }
+
+                let idx = 0;
+
+                function processNextItem() {
+
+                  if (idx >= items.length) {
+
+                    const confirmHoldSql = `
+                      UPDATE ticket_holds
+                      SET status = 'CONFIRMED'
+                      WHERE user_id = ?
+                      AND event_id = ?
+                      AND showtime_id IN (
+                        SELECT DISTINCT showtime_id
+                        FROM order_items
+                        WHERE order_id = ?
+                      )
+                      AND status = 'ACTIVE'
+                    `;
+
+                    return db.query(
+                      confirmHoldSql,
+                      [
+                        order.user_id,
+                        order.event_id,
+                        orderId,
+                      ],
+                      (holdErr) => {
+
+                        if (holdErr) {
+
+                          console.log(holdErr);
+
+                          return db.rollback(() =>
+                            res.status(500).json({
+                              message: "Lỗi server",
+                            })
+                          );
+
+                        }
+
+                        db.commit((commitErr) => {
+
+                          if (commitErr) {
+
+                            console.log(commitErr);
+
+                            return db.rollback(() =>
+                              res.status(500).json({
+                                message: "Lỗi server",
+                              })
+                            );
+
+                          }
+
+                          return res.json({
+                            message:
+                              "Thanh toán thành công",
+                          });
+
+                        });
+
+                      }
+                    );
+
+                  }
+
+                  const item = items[idx++];
+
+                  const soldSql = `
+                    UPDATE showtime_seats
+                    SET status = 'SOLD'
+                    WHERE showtime_id = ?
+                    AND seat_id = ?
+                  `;
+
+                  db.query(
+                    soldSql,
+                    [
+                      item.showtime_id,
+                      item.seat_id,
+                    ],
+                    (soldErr) => {
+
+                      if (soldErr) {
+
+                        console.log(soldErr);
+
+                        return db.rollback(() =>
+                          res.status(500).json({
+                            message: "Lỗi server",
+                          })
+                        );
+
+                      }
+
+                      const ticketCode =
+                        `HMT-${orderId}-${item.seat_id}-${Date.now()}`;
+
+                      const qrCode =
+                        ticketCode;
+
+                      const insertTicketSql = `
+                        INSERT INTO tickets
+                        (
+                          order_item_id,
+                          event_id,
+                          showtime_id,
+                          user_id,
+                          zone_id,
+                          seat_id,
+                          ticket_code,
+                          qr_code,
+                          status
+                        )
+                        VALUES
+                        (
+                          ?, ?, ?, ?, ?, ?, ?, ?, 'VALID'
+                        )
+                      `;
+
+                      db.query(
+                        insertTicketSql,
+                        [
+                          item.id,
+                          order.event_id,
+                          item.showtime_id,
+                          order.user_id,
+                          item.zone_id,
+                          item.seat_id,
+                          ticketCode,
+                          qrCode,
+                        ],
+                        (ticketErr) => {
+
+                          if (ticketErr) {
+
+                            console.log(ticketErr);
+
+                            return db.rollback(() =>
+                              res.status(500).json({
+                                message: "Lỗi server",
+                              })
+                            );
+
+                          }
+
+                          processNextItem();
+
+                        }
+                      );
+
+                    }
+                  );
+
+                }
+
+                processNextItem();
+
+              }
+            );
+
+          }
+        );
+
+      }
+    );
+
+  });
+
+});
+
+
 module.exports = router;
