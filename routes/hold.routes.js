@@ -38,6 +38,7 @@ router.post("/bulk", (req, res) => {
       AND expires_at > NOW()
   `;
 
+  console.log("CHECK SQL");
   db.query(
     checkSql,
     [showtime_id, ...seat_ids],
