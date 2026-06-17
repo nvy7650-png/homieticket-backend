@@ -166,16 +166,7 @@ router.post("/", (req, res) => {
                   );
 
                 }
-
-                if (seat_id) {
-
-  processNext();
-
-} else {
-
-  processNext();
-
-}
+                  processNext();
 
               }
 
