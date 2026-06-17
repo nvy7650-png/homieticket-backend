@@ -737,10 +737,89 @@ function createShowtimeInventory(eventId, showtimeId) {
     );
   });
 }
+function createSeatsForZone(
+  zoneId,
+  rows,
+  seatsPerRow
+) {
 
-router.post(
+  return new Promise((resolve, reject) => {
 
-  "/create-full",
+    let total =
+      rows * seatsPerRow;
+
+    if (total === 0) {
+      resolve();
+      return;
+    }
+
+    let completed = 0;
+
+    for (
+      let rowIndex = 0;
+      rowIndex < rows;
+      rowIndex++
+    ) {
+
+      const rowLabel =
+        String.fromCharCode(
+          65 + rowIndex
+        );
+
+      for (
+        let seatNumber = 1;
+        seatNumber <= seatsPerRow;
+        seatNumber++
+      ) {
+
+        db.query(
+
+          `
+          INSERT INTO seats
+          (
+            zone_id,
+            row_label,
+            seat_number,
+            seat_code
+          )
+          VALUES (?, ?, ?, ?)
+          `,
+
+          [
+            zoneId,
+            rowLabel,
+            seatNumber,
+            `${rowLabel}${seatNumber}`
+          ],
+
+          (err) => {
+
+            if (err) {
+              reject(err);
+              return;
+            }
+
+            completed++;
+
+            if (
+              completed === total
+            ) {
+              resolve();
+            }
+
+          }
+
+        );
+
+      }
+
+    }
+
+  });
+
+}
+
+router.post("/create-full",
 
   upload.single("image"),
 
@@ -904,72 +983,27 @@ router.post(
               console.log("ZONE INSERT OK", zoneResult.insertId);
 
               const zoneId = zoneResult.insertId;
-
-              // For MANUAL mode, create seat rows and seats
               if (seat_mode === "MANUAL") {
 
-                const rows = Number(zone.rows);
-                const seatsPerRow = Number(zone.seatsPerRow);
-
-                for (let rowIndex = 0; rowIndex < rows; rowIndex++) {
-
-                  const rowLabel = String.fromCharCode(65 + rowIndex);
-
-                  for (let seatNumber = 1; seatNumber <= seatsPerRow; seatNumber++) {
-
-                    const seatSql = `
-
-                      INSERT INTO seats
-
-                      (
-
-                        zone_id,
-
-                        row_label,
-
-                        seat_number,
-
-                        seat_code
-
-                      )
-
-                      VALUES (?, ?, ?, ?)
-
-                    `;
-
-                    db.query(
-  seatSql,
-  [
+  createSeatsForZone(
     zoneId,
-    rowLabel,
-    seatNumber,
-    `${rowLabel}${seatNumber}`
-  ],
-  (seatErr, seatResult) => {
-
-    if (seatErr) {
-
+    Number(zone.rows || 0),
+    Number(zone.seatsPerRow || 0)
+  )
+    .then(() => {
       console.log(
-        "SEAT ERROR:",
-        seatErr
+        `SEATS CREATED FOR ZONE ${zoneId}`
       );
+    })
+    .catch((err) => {
+      console.log(
+        "CREATE SEATS ERROR:",
+        err
+      );
+    });
 
-      return;
-    }
-
-    console.log(
-      "SEAT INSERT:",
-      seatResult.insertId
-    );
-
-  }
-);
-
-                  }
-
-                }
-
-              }
+}
+              
 
             });
 
@@ -1045,12 +1079,6 @@ router.post(
                   console.log("SHOWTIME INSERT OK", showtimeResult.insertId);
 
                   const showtimeId = showtimeResult.insertId;
-                  setTimeout(() => {
-  createShowtimeInventory(
-    eventId,
-    showtimeId
-  );
-}, 2000);
 
                 }
 
