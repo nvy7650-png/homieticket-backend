@@ -937,7 +937,33 @@ router.post(
 
                     `;
 
-                    db.query(seatSql, [zoneId, rowLabel, seatNumber, `${rowLabel}${seatNumber}`]);
+                    db.query(
+  seatSql,
+  [
+    zoneId,
+    rowLabel,
+    seatNumber,
+    `${rowLabel}${seatNumber}`
+  ],
+  (seatErr, seatResult) => {
+
+    if (seatErr) {
+
+      console.log(
+        "SEAT ERROR:",
+        seatErr
+      );
+
+      return;
+    }
+
+    console.log(
+      "SEAT INSERT:",
+      seatResult.insertId
+    );
+
+  }
+);
 
                   }
 
