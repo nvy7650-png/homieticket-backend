@@ -169,50 +169,13 @@ router.post("/", (req, res) => {
 
                 if (seat_id) {
 
-                  const updateSeatSql = `
-                    UPDATE seats
-                    SET status = 'HELD'
-                    WHERE id = ?
-                    AND status = 'AVAILABLE'
-                  `;
+  processNext();
 
-                  db.query(updateSeatSql, [seat_id], (seatErr, seatResult) => {
+} else {
 
-                    if (seatErr) {
+  processNext();
 
-                      console.log(seatErr);
-
-                      return db.rollback(() =>
-
-                        res.status(500).json({ message: "Lỗi server" })
-
-                      );
-
-                    }
-
-                    if (!seatResult || seatResult.affectedRows === 0) {
-
-                      return db.rollback(() =>
-
-                        res.status(400).json({
-
-                          message: "Ghế đã được giữ hoặc đã bán",
-
-                        })
-
-                      );
-
-                    }
-
-                    processNext();
-
-                  });
-
-                } else {
-
-                  processNext();
-
-                }
+}
 
               }
 
