@@ -588,6 +588,38 @@ FROM zones
 
 });
 
+router.get("/:id/showtimes", (req, res) => {
+
+  const sql = `
+    SELECT
+      id,
+      start_time,
+      end_time
+    FROM showtimes
+    WHERE event_id = ?
+    ORDER BY start_time
+  `;
+
+  db.query(
+    sql,
+    [req.params.id],
+    (err, results) => {
+
+      if (err) {
+        console.log(err);
+
+        return res.status(500).json({
+          message: "Lỗi server"
+        });
+      }
+
+      res.json(results);
+
+    }
+  );
+
+});
+
 router.get("/:id", (req, res) => {
 
   const sql = `
