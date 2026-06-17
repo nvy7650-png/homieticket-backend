@@ -38,11 +38,16 @@ router.post("/bulk", (req, res) => {
       AND expires_at > NOW()
   `;
 
-  console.log("CHECK SQL");
+
   db.query(
     checkSql,
     [showtime_id, ...seat_ids],
     (err, rows) => {
+      
+      console.log("========== HOLD CHECK ==========");
+    console.log("SHOWTIME:", showtime_id);
+    console.log("SEAT_IDS:", seat_ids);
+    console.log("FOUND_ROWS:", rows);
 
       if (err) {
         console.log(err);
