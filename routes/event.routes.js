@@ -1079,6 +1079,10 @@ router.post("/create-full",
                   console.log("SHOWTIME INSERT OK", showtimeResult.insertId);
 
                   const showtimeId = showtimeResult.insertId;
+                  createShowtimeInventory(
+  eventId,
+  showtimeId
+);
 
                 }
 
