@@ -61,15 +61,32 @@ const upload = multer({
 router.get("/", (req, res) => {
 
   const sql = `
-    SELECT
-      events.*,
-      categories.name AS category_name
-    FROM events
-    LEFT JOIN categories
-      ON events.category_id = categories.id
-    WHERE events.status = 'APPROVED'
-    ORDER BY events.created_at DESC
-  `;
+  SELECT
+    e.*,
+    c.name AS category_name,
+
+    MIN(s.start_time) AS first_showtime,
+
+    (
+      SELECT MIN(z.price)
+      FROM zones z
+      WHERE z.event_id = e.id
+    ) AS min_price
+
+  FROM events e
+
+  LEFT JOIN categories c
+    ON e.category_id = c.id
+
+  LEFT JOIN showtimes s
+    ON s.event_id = e.id
+
+  WHERE e.status = 'APPROVED'
+
+  GROUP BY e.id
+
+  ORDER BY e.created_at DESC
+`;
 
   db.query(sql, (err, results) => {
 
