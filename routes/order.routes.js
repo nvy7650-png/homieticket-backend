@@ -188,4 +188,92 @@ router.post("/", (req, res) => {
 
 });
 
+// GET /api/orders/:id
+router.get("/:id", (req, res) => {
+
+  const orderId = req.params.id;
+
+  const sql = `
+    SELECT
+      o.id,
+      o.total_price,
+      o.status,
+
+      e.id AS event_id,
+      e.title AS event_title,
+
+      z.id AS zone_id,
+      z.name AS zone_name,
+
+      s.id AS seat_id,
+      s.seat_code
+
+    FROM orders o
+
+    LEFT JOIN order_items oi
+      ON oi.order_id = o.id
+
+    LEFT JOIN seats s
+      ON s.id = oi.seat_id
+
+    LEFT JOIN zones z
+      ON z.id = oi.zone_id
+
+    LEFT JOIN events e
+      ON e.id = o.event_id
+
+    WHERE o.id = ?
+  `;
+
+  db.query(
+    sql,
+    [orderId],
+    (err, rows) => {
+
+      if (err) {
+
+        console.log(err);
+
+        return res.status(500).json({
+          message: "Lỗi server",
+        });
+
+      }
+
+      if (!rows.length) {
+
+        return res.status(404).json({
+          message: "Không tìm thấy đơn hàng",
+        });
+
+      }
+
+      const first = rows[0];
+
+      return res.json({
+        id: first.id,
+        total_price: first.total_price,
+        status: first.status,
+
+        event: {
+          id: first.event_id,
+          title: first.event_title,
+        },
+
+        zone: {
+          id: first.zone_id,
+          name: first.zone_name,
+        },
+
+        seats: rows.map((row) => ({
+          id: row.seat_id,
+          seat_code: row.seat_code,
+        })),
+      });
+
+    }
+  );
+
+});
+
 module.exports = router;
