@@ -530,6 +530,96 @@ db.query(
     }
 
     const user = userResult[0];
+    if (user.role === "ORGANIZER") {
+
+  const organizerStatSql = `
+    SELECT
+
+      COUNT(*) AS total_events,
+
+      SUM(
+        CASE
+          WHEN status = 'APPROVED'
+          THEN 1
+          ELSE 0
+        END
+      ) AS approved_events,
+
+      SUM(
+        CASE
+          WHEN status = 'PENDING'
+          THEN 1
+          ELSE 0
+        END
+      ) AS pending_events
+
+    FROM events
+
+    WHERE organizer_id = ?
+  `;
+
+  db.query(
+    organizerStatSql,
+    [req.params.id],
+    (err, statResult) => {
+
+      if (err) {
+
+        return res.status(500).json({
+          message: "Server error",
+        });
+
+      }
+
+      const eventSql = `
+        SELECT
+          id,
+          title,
+          status,
+          created_at
+        FROM events
+        WHERE organizer_id = ?
+        ORDER BY created_at DESC
+      `;
+
+      db.query(
+        eventSql,
+        [req.params.id],
+        (err, events) => {
+
+          if (err) {
+
+            return res.status(500).json({
+              message: "Server error",
+            });
+
+          }
+
+          res.json({
+
+            ...user,
+
+            total_events:
+              statResult[0].total_events || 0,
+
+            approved_events:
+              statResult[0].approved_events || 0,
+
+            pending_events:
+              statResult[0].pending_events || 0,
+
+            events
+
+          });
+
+        }
+      );
+
+    }
+  );
+
+  return;
+}
 
     const statSql = `
       SELECT
