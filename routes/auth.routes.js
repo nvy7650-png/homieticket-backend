@@ -499,43 +499,67 @@ router.get(
   "/users/:id",
   (req, res) => {
 
-    db.query(
-      `
+    const sql = `
       SELECT
-        id,
-        name,
-        email,
-        phone,
-        role,
-        status,
-        created_at
-      FROM users
-      WHERE id = ?
-      `,
+        u.id,
+        u.name,
+        u.email,
+        u.phone,
+        u.role,
+        u.status,
+        u.created_at,
+
+        COUNT(
+          DISTINCT o.id
+        ) AS total_orders,
+
+        COUNT(
+          DISTINCT t.id
+        ) AS total_tickets,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN o.status = 'PAID'
+              THEN o.total_price
+              ELSE 0
+            END
+          ),
+          0
+        ) AS total_spent
+
+      FROM users u
+
+      LEFT JOIN orders o
+      ON u.id = o.user_id
+
+      LEFT JOIN tickets t
+      ON u.id = t.user_id
+
+      WHERE u.id = ?
+
+      GROUP BY u.id
+    `;
+
+    db.query(
+      sql,
       [req.params.id],
       (err, results) => {
 
         if (err) {
 
-          return res
-            .status(500)
-            .json({
-              message:
-                "Server error",
-            });
+          return res.status(500).json({
+            message: "Server error",
+          });
 
         }
 
-        if (
-          results.length === 0
-        ) {
+        if (!results.length) {
 
-          return res
-            .status(404)
-            .json({
-              message:
-                "Không tìm thấy user",
-            });
+          return res.status(404).json({
+            message:
+              "Không tìm thấy user",
+          });
 
         }
 
