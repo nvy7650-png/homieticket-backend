@@ -334,31 +334,30 @@ router.post("/login", (req, res) => {
       const user =
         results[0];
 
-      // WRONG PASSWORD
-      if (
-        user.password !==
-        password
-      ) {
-
-        return res.status(401).json({
-          message:
-            "Sai mật khẩu",
-        });
-
-      }
-
       // ACCOUNT LOCKED
-      if (
-        user.status !==
-        "ACTIVE"
-      ) {
+if (
+  user.status === "BLOCKED"
+) {
 
-        return res.status(403).json({
-          message:
-            "Tài khoản đã bị khóa",
-        });
+  return res.status(403).json({
+    message:
+      "Tài khoản đã bị khóa",
+  });
 
-      }
+}
+
+// WRONG PASSWORD
+if (
+  user.password !==
+  password
+) {
+
+  return res.status(401).json({
+    message:
+      "Sai mật khẩu",
+  });
+
+}
 
       // REMOVE PASSWORD
       delete user.password;
@@ -378,5 +377,118 @@ router.post("/login", (req, res) => {
   );
 
 });
+// =============================
+// BLOCK USER
+// =============================
+router.put(
+  "/users/:id/block",
+  (req, res) => {
 
+    db.query(
+      `
+      UPDATE users
+      SET status='BLOCKED'
+      WHERE id=?
+      `,
+      [req.params.id],
+      (err) => {
+
+        if (err) {
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Lỗi khóa tài khoản",
+            });
+
+        }
+
+        res.json({
+          message:
+            "Đã khóa tài khoản",
+        });
+
+      }
+    );
+
+  }
+);
+
+// =============================
+// UNBLOCK USER
+// =============================
+router.put(
+  "/users/:id/unblock",
+  (req, res) => {
+
+    db.query(
+      `
+      UPDATE users
+      SET status='ACTIVE'
+      WHERE id=?
+      `,
+      [req.params.id],
+      (err) => {
+
+        if (err) {
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Lỗi mở khóa",
+            });
+
+        }
+
+        res.json({
+          message:
+            "Đã mở khóa",
+        });
+
+      }
+    );
+
+  }
+);
+// =============================
+// GET ALL USERS
+// =============================
+router.get(
+  "/users",
+  (req, res) => {
+
+    db.query(
+      `
+      SELECT
+        id,
+        name,
+        email,
+        phone,
+        role,
+        status
+      FROM users
+      ORDER BY id DESC
+      `,
+      (err, results) => {
+
+        if (err) {
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Server error",
+            });
+
+        }
+
+        res.json(results);
+
+      }
+    );
+
+  }
+);
 module.exports = router;
