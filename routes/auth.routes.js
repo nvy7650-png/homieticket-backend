@@ -491,4 +491,61 @@ router.get(
 
   }
 );
+
+// =============================
+// GET USER DETAIL
+// =============================
+router.get(
+  "/users/:id",
+  (req, res) => {
+
+    db.query(
+      `
+      SELECT
+        id,
+        name,
+        email,
+        phone,
+        role,
+        status,
+        created_at
+      FROM users
+      WHERE id = ?
+      `,
+      [req.params.id],
+      (err, results) => {
+
+        if (err) {
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Server error",
+            });
+
+        }
+
+        if (
+          results.length === 0
+        ) {
+
+          return res
+            .status(404)
+            .json({
+              message:
+                "Không tìm thấy user",
+            });
+
+        }
+
+        res.json(
+          results[0]
+        );
+
+      }
+    );
+
+  }
+);
 module.exports = router;
