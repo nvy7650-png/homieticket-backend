@@ -109,4 +109,108 @@ router.get("/:id", (req, res) => {
 
 });
 
+// POST /api/tickets/checkin
+router.post("/checkin", (req, res) => {
+
+  const { ticket_code } = req.body;
+
+  if (!ticket_code) {
+
+    return res.status(400).json({
+      success: false,
+      message: "Thiếu ticket code",
+    });
+
+  }
+
+  const findSql = `
+    SELECT
+      t.*,
+      e.title AS event_title,
+      s.seat_code
+    FROM tickets t
+
+    LEFT JOIN events e
+      ON e.id = t.event_id
+
+    LEFT JOIN seats s
+      ON s.id = t.seat_id
+
+    WHERE t.ticket_code = ?
+  `;
+
+  db.query(
+    findSql,
+    [ticket_code],
+    (err, rows) => {
+
+      if (err) {
+
+        console.log(err);
+
+        return res.status(500).json({
+          success: false,
+          message: "Lỗi server",
+        });
+
+      }
+
+      if (!rows.length) {
+
+        return res.status(404).json({
+          success: false,
+          message: "Vé không hợp lệ",
+        });
+
+      }
+
+      const ticket = rows[0];
+
+      if (ticket.status === "USED") {
+
+        return res.json({
+          success: false,
+          message: "Vé đã được sử dụng",
+          ticket,
+        });
+
+      }
+
+      const updateSql = `
+        UPDATE tickets
+        SET status = 'USED'
+        WHERE id = ?
+      `;
+
+      db.query(
+        updateSql,
+        [ticket.id],
+        (updateErr) => {
+
+          if (updateErr) {
+
+            console.log(updateErr);
+
+            return res.status(500).json({
+              success: false,
+              message: "Lỗi server",
+            });
+
+          }
+
+          return res.json({
+            success: true,
+            message: "Check-in thành công",
+            ticket,
+          });
+
+        }
+      );
+
+    }
+  );
+
+});
+
+
 module.exports = router;
