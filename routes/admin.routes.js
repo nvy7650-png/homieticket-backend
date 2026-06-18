@@ -132,4 +132,70 @@ router.get("/users", (req, res) => {
 
 });
 
+// BLOCK USER
+router.put("/users/:id/block", (req, res) => {
+
+  const sql = `
+    UPDATE users
+    SET status = 'BLOCKED'
+    WHERE id = ?
+  `;
+
+  db.query(
+    sql,
+    [req.params.id],
+    (err) => {
+
+      if (err) {
+
+        console.log(err);
+
+        return res.status(500).json({
+          message: "Lỗi server",
+        });
+
+      }
+
+      res.json({
+        success: true,
+      });
+
+    }
+  );
+
+});
+
+// UNBLOCK USER
+router.put("/users/:id/unblock", (req, res) => {
+
+  const sql = `
+    UPDATE users
+    SET status = 'ACTIVE'
+    WHERE id = ?
+  `;
+
+  db.query(
+    sql,
+    [req.params.id],
+    (err) => {
+
+      if (err) {
+
+        console.log(err);
+
+        return res.status(500).json({
+          message: "Lỗi server",
+        });
+
+      }
+
+      res.json({
+        success: true,
+      });
+
+    }
+  );
+
+});
+
 module.exports = router;
