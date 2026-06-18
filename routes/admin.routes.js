@@ -96,4 +96,40 @@ router.get("/stats", (req, res) => {
 
 });
 
+// GET ALL USERS
+router.get("/users", (req, res) => {
+
+  const sql = `
+    SELECT
+      id,
+      name,
+      email,
+      role,
+      status,
+      created_at
+    FROM users
+    ORDER BY created_at DESC
+  `;
+
+  db.query(
+    sql,
+    (err, rows) => {
+
+      if (err) {
+
+        console.log(err);
+
+        return res.status(500).json({
+          message: "Lỗi server",
+        });
+
+      }
+
+      res.json(rows);
+
+    }
+  );
+
+});
+
 module.exports = router;
