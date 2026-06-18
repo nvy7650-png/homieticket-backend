@@ -496,26 +496,62 @@ router.get(
 // GET USER DETAIL
 // =============================
 router.get(
-  "/users/:id",
-  (req, res) => {
+"/users/:id",
+(req, res) => {
 
-    const userSql = `
+const userSql = `
+  SELECT
+    id,
+    name,
+    email,
+    phone,
+    role,
+    status,
+    created_at
+  FROM users
+  WHERE id = ?
+`;
+
+db.query(
+  userSql,
+  [req.params.id],
+  (err, userResult) => {
+
+    if (err) {
+      return res.status(500).json({
+        message: "Server error",
+      });
+    }
+
+    if (!userResult.length) {
+      return res.status(404).json({
+        message: "Không tìm thấy user",
+      });
+    }
+
+    const user = userResult[0];
+
+    const statSql = `
       SELECT
-        id,
-        name,
-        email,
-        phone,
-        role,
-        status,
-        created_at
-      FROM users
-      WHERE id = ?
+        COUNT(*) AS total_orders,
+        COALESCE(
+          SUM(
+            CASE
+              WHEN status='PAID'
+              THEN total_price
+              ELSE 0
+            END
+          ),
+          0
+        ) AS total_spent
+      FROM orders
+      WHERE user_id = ?
     `;
 
     db.query(
-      userSql,
+      statSql,
       [req.params.id],
-      (err, userResult) => {
+      (err, statResult) => {
 
         if (err) {
           return res.status(500).json({
@@ -523,40 +559,17 @@ router.get(
           });
         }
 
-        if (!userResult.length) {
-          return res.status(404).json({
-            message: "Không tìm thấy user",
-          });
-        }
-
-        const user =
-          userResult[0];
-
-        const statSql = `
+        const ticketSql = `
           SELECT
-
-            COUNT(*) AS total_orders,
-
-            COALESCE(
-              SUM(
-                CASE
-                  WHEN status='PAID'
-                  THEN total_price
-                  ELSE 0
-                END
-              ),
-              0
-            ) AS total_spent
-
-          FROM orders
-
+            COUNT(*) AS total_tickets
+          FROM tickets
           WHERE user_id = ?
         `;
 
         db.query(
-          statSql,
+          ticketSql,
           [req.params.id],
-          (err, statResult) => {
+          (err, ticketResult) => {
 
             if (err) {
               return res.status(500).json({
@@ -564,84 +577,47 @@ router.get(
               });
             }
 
-            const ticketSql = `
+            const orderSql = `
               SELECT
-                COUNT(*) AS total_tickets
-              FROM tickets
-              WHERE user_id = ?
+                o.id,
+                o.total_price,
+                o.status,
+                o.created_at,
+                e.title AS event_title
+              FROM orders o
+              LEFT JOIN events e
+              ON o.event_id = e.id
+              WHERE o.user_id = ?
+              ORDER BY o.created_at DESC
             `;
 
             db.query(
-  orderSql,
-  [req.params.id],
-  (err, orders) => {
+              orderSql,
+              [req.params.id],
+              (err, orders) => {
 
-    if (err) {
+                if (err) {
+                  return res.status(500).json({
+                    message: "Server error",
+                  });
+                }
 
-      return res.status(500).json({
-        message: "Server error",
-      });
+                res.json({
+                  ...user,
+                  total_orders:
+                    statResult[0].total_orders,
 
-    }
+                  total_spent:
+                    statResult[0].total_spent,
 
-    res.json({
+                  total_tickets:
+                    ticketResult[0].total_tickets,
 
-      ...user,
+                  orders,
+                });
 
-      total_orders:
-        statResult[0]
-          .total_orders,
-
-      total_spent:
-        statResult[0]
-          .total_spent,
-
-      total_tickets:
-        ticketResult[0]
-          .total_tickets,
-
-      orders,
-
-    });
-
-  }
-);
-
-            db.query(
-  orderSql,
-  [req.params.id],
-  (err, orders) => {
-
-    if (err) {
-
-      return res.status(500).json({
-        message: "Server error",
-      });
-
-    }
-
-    res.json({
-
-      ...user,
-
-      total_orders:
-        statResult[0]
-          .total_orders,
-
-      total_spent:
-        statResult[0]
-          .total_spent,
-
-      total_tickets:
-        ticketResult[0]
-          .total_tickets,
-
-      orders,
-
-    });
-
-  }
-);
+              }
+            );
 
           }
         );
@@ -651,4 +627,8 @@ router.get(
 
   }
 );
+
+}
+);
+
 module.exports = router;
