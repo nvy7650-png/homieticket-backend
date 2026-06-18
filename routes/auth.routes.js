@@ -572,36 +572,76 @@ router.get(
             `;
 
             db.query(
-              ticketSql,
-              [req.params.id],
-              (err, ticketResult) => {
+  orderSql,
+  [req.params.id],
+  (err, orders) => {
 
-                if (err) {
-                  return res.status(500).json({
-                    message: "Server error",
-                  });
-                }
+    if (err) {
 
-                res.json({
+      return res.status(500).json({
+        message: "Server error",
+      });
 
-                  ...user,
+    }
 
-                  total_orders:
-                    statResult[0]
-                      .total_orders,
+    res.json({
 
-                  total_spent:
-                    statResult[0]
-                      .total_spent,
+      ...user,
 
-                  total_tickets:
-                    ticketResult[0]
-                      .total_tickets,
+      total_orders:
+        statResult[0]
+          .total_orders,
 
-                });
+      total_spent:
+        statResult[0]
+          .total_spent,
 
-              }
-            );
+      total_tickets:
+        ticketResult[0]
+          .total_tickets,
+
+      orders,
+
+    });
+
+  }
+);
+
+            db.query(
+  orderSql,
+  [req.params.id],
+  (err, orders) => {
+
+    if (err) {
+
+      return res.status(500).json({
+        message: "Server error",
+      });
+
+    }
+
+    res.json({
+
+      ...user,
+
+      total_orders:
+        statResult[0]
+          .total_orders,
+
+      total_spent:
+        statResult[0]
+          .total_spent,
+
+      total_tickets:
+        ticketResult[0]
+          .total_tickets,
+
+      orders,
+
+    });
+
+  }
+);
 
           }
         );
