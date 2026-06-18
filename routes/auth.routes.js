@@ -602,19 +602,63 @@ db.query(
                   });
                 }
 
-                res.json({
-                  ...user,
-                  total_orders:
-                    statResult[0].total_orders,
+                const ticketListSql = `
+  SELECT
+    t.id,
+    t.ticket_code,
+    t.status,
 
-                  total_spent:
-                    statResult[0].total_spent,
+    e.title AS event_title,
 
-                  total_tickets:
-                    ticketResult[0].total_tickets,
+    s.seat_code
 
-                  orders,
-                });
+  FROM tickets t
+
+  LEFT JOIN events e
+  ON t.event_id = e.id
+
+  LEFT JOIN seats s
+  ON t.seat_id = s.id
+
+  WHERE t.user_id = ?
+
+  ORDER BY t.id DESC
+`;
+
+db.query(
+  ticketListSql,
+  [req.params.id],
+  (err, tickets) => {
+
+    if (err) {
+
+      return res.status(500).json({
+        message: "Server error",
+      });
+
+    }
+
+    res.json({
+
+      ...user,
+
+      total_orders:
+        statResult[0].total_orders,
+
+      total_spent:
+        statResult[0].total_spent,
+
+      total_tickets:
+        ticketResult[0].total_tickets,
+
+      orders,
+
+      tickets,
+
+    });
+
+  }
+);
 
               }
             );
