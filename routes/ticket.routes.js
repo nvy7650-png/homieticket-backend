@@ -60,4 +60,53 @@ router.get("/my/:userId", (req, res) => {
 
 });
 
+// GET /api/tickets/:id
+router.get("/:id", (req, res) => {
+
+  const ticketId = req.params.id;
+
+  const sql = `
+    SELECT
+      t.*,
+      e.title AS event_title,
+      s.seat_code,
+      z.name AS zone_name
+    FROM tickets t
+    LEFT JOIN events e
+      ON e.id = t.event_id
+    LEFT JOIN seats s
+      ON s.id = t.seat_id
+    LEFT JOIN zones z
+      ON z.id = t.zone_id
+    WHERE t.id = ?
+  `;
+
+  db.query(
+    sql,
+    [ticketId],
+    (err, rows) => {
+
+      if (err) {
+        console.log(err);
+
+        return res.status(500).json({
+          message: "Lỗi server",
+        });
+      }
+
+      if (!rows.length) {
+
+        return res.status(404).json({
+          message: "Không tìm thấy vé",
+        });
+
+      }
+
+      res.json(rows[0]);
+
+    }
+  );
+
+});
+
 module.exports = router;
