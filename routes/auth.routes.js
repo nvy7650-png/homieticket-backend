@@ -595,22 +595,108 @@ db.query(
 
           }
 
-          res.json({
+          const ticketSalesSql = `
+  SELECT
 
-            ...user,
+    e.id,
+    e.title,
 
-            total_events:
-              statResult[0].total_events || 0,
+    COUNT(t.id)
+    AS total_tickets
 
-            approved_events:
-              statResult[0].approved_events || 0,
+  FROM events e
 
-            pending_events:
-              statResult[0].pending_events || 0,
+  LEFT JOIN tickets t
+  ON e.id = t.event_id
 
-            events
+  WHERE e.organizer_id = ?
 
+  GROUP BY e.id
+
+  ORDER BY total_tickets DESC
+`;
+
+db.query(
+  ticketSalesSql,
+  [req.params.id],
+  (err, ticketSales) => {
+
+    if (err) {
+
+      return res.status(500).json({
+        message: "Server error",
+      });
+
+    }
+
+    const revenueSql = `
+      SELECT
+
+        e.id,
+        e.title,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN o.status='PAID'
+              THEN o.total_price
+              ELSE 0
+            END
+          ),
+          0
+        ) AS revenue
+
+      FROM events e
+
+      LEFT JOIN orders o
+      ON e.id = o.event_id
+
+      WHERE e.organizer_id = ?
+
+      GROUP BY e.id
+
+      ORDER BY revenue DESC
+    `;
+
+    db.query(
+      revenueSql,
+      [req.params.id],
+      (err, revenues) => {
+
+        if (err) {
+
+          return res.status(500).json({
+            message: "Server error",
           });
+
+        }
+
+        res.json({
+
+          ...user,
+
+          total_events:
+            statResult[0].total_events || 0,
+
+          approved_events:
+            statResult[0].approved_events || 0,
+
+          pending_events:
+            statResult[0].pending_events || 0,
+
+          events,
+
+          ticketSales,
+
+          revenues
+
+        });
+
+      }
+    );
+
+  }
+);
 
         }
       );
@@ -621,22 +707,6 @@ db.query(
   return;
 }
 
-    const statSql = `
-      SELECT
-        COUNT(*) AS total_orders,
-        COALESCE(
-          SUM(
-            CASE
-              WHEN status='PAID'
-              THEN total_price
-              ELSE 0
-            END
-          ),
-          0
-        ) AS total_spent
-      FROM orders
-      WHERE user_id = ?
-    `;
 
     db.query(
       statSql,
