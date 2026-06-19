@@ -35,6 +35,7 @@ FROM ticket_holds
 WHERE showtime_id = ?
 AND seat_id IN (${placeholders})
 AND status = 'ACTIVE'
+AND expires_at > NOW()
 `;
 
 db.query(
@@ -94,8 +95,7 @@ checkSql,
   const expiresAt =
   new Date(
     Date.now() +
-    (15 * 60 * 1000) +
-    (7 * 60 * 60 * 1000)
+    15 * 60 * 1000
   );
 
 console.log(
@@ -149,10 +149,9 @@ const insertValues = values.map(
       console.log(result);
 
       return res.json({
-        message:
-          "Giữ ghế thành công",
-      });
-
+  message: "Giữ ghế thành công",
+  expires_at: expiresAt,
+});
     }
   );
 
