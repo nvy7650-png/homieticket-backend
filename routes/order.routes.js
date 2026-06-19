@@ -303,14 +303,12 @@ router.get(
       SELECT
 
         o.id,
-        o.total_amount,
-        o.payment_method,
-        o.payment_status,
+        o.total_price,
+        o.status,
         o.created_at,
 
         e.id AS event_id,
-        e.title AS event_title,
-        e.image_url
+        e.title AS event_title
 
       FROM orders o
 
