@@ -226,6 +226,25 @@ router.delete(
       AND status = 'ACTIVE'
     `;
 
+    console.log(
+  "========== RELEASE HOLD =========="
+);
+
+console.log(
+  "USER:",
+  user_id
+);
+
+console.log(
+  "SHOWTIME:",
+  showtime_id
+);
+
+console.log(
+  "SEATS:",
+  seat_ids
+);
+
     db.query(
       sql,
       [
