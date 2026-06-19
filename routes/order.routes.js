@@ -295,6 +295,56 @@ router.get("/:id", (req, res) => {
 
 });
 
+router.get(
+  "/my-orders/:userId",
+  (req, res) => {
+
+    const sql = `
+      SELECT
+
+        o.id,
+        o.total_amount,
+        o.payment_method,
+        o.payment_status,
+        o.created_at,
+
+        e.id AS event_id,
+        e.title AS event_title,
+        e.image_url
+
+      FROM orders o
+
+      LEFT JOIN events e
+      ON o.event_id = e.id
+
+      WHERE o.user_id = ?
+
+      ORDER BY o.id DESC
+    `;
+
+    db.query(
+      sql,
+      [req.params.userId],
+      (err, result) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res.status(500).json({
+            message: "Server error",
+          });
+
+        }
+
+        res.json(result);
+
+      }
+    );
+
+  }
+);
+
 // POST /api/orders/:id/pay
 router.post("/:id/pay", (req, res) => {
 
