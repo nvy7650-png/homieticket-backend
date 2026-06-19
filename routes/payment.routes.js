@@ -56,11 +56,13 @@ try {
     );
 
   const ipAddr =
-    req.headers[
-      "x-forwarded-for"
-    ] ||
+  (
+    req.headers["x-forwarded-for"] ||
     req.socket.remoteAddress ||
-    "127.0.0.1";
+    "127.0.0.1"
+  )
+    .split(",")[0]
+    .trim();
 
   let vnp_Params = {};
 
@@ -149,6 +151,8 @@ console.log(signData);
 console.log(
   "===================="
 );
+
+console.log("IP:", ipAddr);
 
 const signed =
   crypto
