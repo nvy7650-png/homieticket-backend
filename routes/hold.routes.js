@@ -5,6 +5,13 @@ const db = require("../db");
 // POST /api/holds/bulk
 router.post("/bulk", (req, res) => {
 
+
+  db.query(`
+    DELETE
+FROM ticket_holds
+WHERE expires_at <= NOW()
+  `);
+
 const {
 user_id,
 event_id,
@@ -290,5 +297,6 @@ router.delete(
 
   }
 );
+
 
 module.exports = router;

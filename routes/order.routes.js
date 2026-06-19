@@ -454,21 +454,19 @@ router.post("/:id/pay", (req, res) => {
 
                   if (idx >= items.length) {
 
-                    const confirmHoldSql = `
-                      UPDATE ticket_holds
-                      SET status = 'CONFIRMED'
-                      WHERE user_id = ?
-                      AND event_id = ?
-                      AND showtime_id IN (
-                        SELECT DISTINCT showtime_id
-                        FROM order_items
-                        WHERE order_id = ?
-                      )
-                      AND status = 'ACTIVE'
-                    `;
+                   const deleteHoldSql = `
+  DELETE FROM ticket_holds
+  WHERE user_id = ?
+  AND event_id = ?
+  AND showtime_id IN (
+    SELECT DISTINCT showtime_id
+    FROM order_items
+    WHERE order_id = ?
+  )
+`;
 
                     return db.query(
-                      confirmHoldSql,
+  deleteHoldSql,
                       [
                         order.user_id,
                         order.event_id,
