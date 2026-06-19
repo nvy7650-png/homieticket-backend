@@ -95,9 +95,11 @@ checkSql,
   const expiresAt =
   new Date(
     Date.now() +
-    (10 * 60 * 1000)
+    10 * 60 * 1000
   );
 
+const expiresAtISO =
+  expiresAt.toISOString();
 
 const insertValues = values.map(
   (v) => [
@@ -106,7 +108,7 @@ const insertValues = values.map(
     v[2],
     v[3],
     v[4],
-    expiresAt,
+    expiresAtISO,,
     "ACTIVE",
   ]
 );
@@ -142,7 +144,7 @@ const insertValues = values.map(
       
       return res.json({
   message: "Giữ ghế thành công",
-  expires_at: expiresAt,
+  expires_at: expiresAtISO,
 });
     }
   );
