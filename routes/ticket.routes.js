@@ -2,66 +2,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-// GET /api/tickets/my/:userId
-router.get("/my/:userId", (req, res) => {
-
-  const userId = req.params.userId;
-
-  const sql = `
-    SELECT
-  t.id,
-  t.ticket_code,
-  t.qr_code,
-  t.status,
-
-  e.id AS event_id,
-  e.title AS event_title,
-  e.location,
-  e.image_url,
-
-  st.start_time,
-
-  t.issued_at
-
-    FROM tickets t
-
-    LEFT JOIN events e
-      ON e.id = t.event_id
-
-    LEFT JOIN seats s
-      ON s.id = t.seat_id
-
-    LEFT JOIN zones z
-      ON z.id = t.zone_id
-    LEFT JOIN showtimes st
-  ON st.id = t.showtime_id
-
-    WHERE t.user_id = ?
-
-    ORDER BY t.issued_at DESC
-  `;
-
-  db.query(
-    sql,
-    [userId],
-    (err, rows) => {
-
-      if (err) {
-
-        console.log(err);
-
-        return res.status(500).json({
-          message: "Lỗi server",
-        });
-
-      }
-
-      res.json(rows);
-
-    }
-  );
-
-});
 
 // GET /api/tickets/:id
 router.get("/:id", (req, res) => {
@@ -71,7 +11,7 @@ router.get("/:id", (req, res) => {
   const sql = `
     SELECT
       t.*,
-      e.title AS event_title,
+      e.title AS event_title
     FROM tickets t
     LEFT JOIN events e
       ON e.id = t.event_id
@@ -221,32 +161,28 @@ router.get(
 
     const sql = `
       SELECT
+  t.id,
+  t.ticket_code,
+  t.qr_code,
+  t.status,
 
-        t.id,
-        t.ticket_code,
-        t.status,
+  e.id AS event_id,
+  e.title AS event_title,
+  e.location,
 
-        e.id AS event_id,
-        e.title AS event_title,
-        e.image_url,
+  st.start_time
 
+FROM tickets t
 
-        st.start_time
+LEFT JOIN events e
+ON t.event_id = e.id
 
-      FROM tickets t
+LEFT JOIN showtimes st
+ON t.showtime_id = st.id
 
-      LEFT JOIN events e
-      ON t.event_id = e.id
+WHERE t.user_id = ?
 
-      LEFT JOIN seats s
-      ON t.seat_id = s.id
-
-      LEFT JOIN showtimes st
-      ON t.showtime_id = st.id
-
-      WHERE t.user_id = ?
-
-      ORDER BY t.id DESC
+ORDER BY t.id DESC
     `;
 
     db.query(
