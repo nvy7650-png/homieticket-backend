@@ -345,10 +345,163 @@ db.query(
 
         }
 
-        console.log(
-          "ORDER ITEMS:",
-          items.length
+        cconsole.log(
+"ORDER ITEMS:",
+items.length
+);
+
+let idx = 0;
+
+function processNextItem() {
+
+if (idx >= items.length) {
+
+const deleteHoldSql = `
+  DELETE FROM ticket_holds
+  WHERE user_id = ?
+  AND event_id = ?
+  AND showtime_id IN (
+    SELECT DISTINCT showtime_id
+    FROM order_items
+    WHERE order_id = ?
+  )
+`;
+
+return db.query(
+  deleteHoldSql,
+  [
+    order.user_id,
+    order.event_id,
+    orderId,
+  ],
+  (holdErr) => {
+
+    if (holdErr) {
+
+      console.log(
+        holdErr
+      );
+
+      return res
+        .status(500)
+        .send(
+          "Hold Error"
         );
+
+    }
+
+    console.log(
+      "HOLDS DELETED"
+    );
+
+    return res.redirect(
+      `https://homieticket.vercel.app/payment-success?vnp_ResponseCode=00&vnp_TxnRef=${orderId}`
+    );
+
+  }
+);
+
+}
+
+const item =
+items[idx++];
+
+const soldSql = `     UPDATE showtime_seats
+    SET status = 'SOLD'
+    WHERE showtime_id = ?
+    AND seat_id = ?
+  `;
+
+db.query(
+soldSql,
+[
+item.showtime_id,
+item.seat_id,
+],
+(soldErr) => {
+
+  if (soldErr) {
+
+    console.log(
+      soldErr
+    );
+
+    return res
+      .status(500)
+      .send(
+        "Sold Error"
+      );
+
+  }
+
+  const ticketCode =
+    `HMT-${orderId}-${item.seat_id}-${Date.now()}`;
+
+  const insertTicketSql = `
+    INSERT INTO tickets
+    (
+      order_item_id,
+      event_id,
+      showtime_id,
+      user_id,
+      zone_id,
+      seat_id,
+      ticket_code,
+      status
+    )
+    VALUES
+    (
+      ?, ?, ?, ?, ?, ?, ?, 'VALID'
+    )
+  `;
+
+  db.query(
+    insertTicketSql,
+    [
+      item.id,
+      order.event_id,
+      item.showtime_id,
+      order.user_id,
+      item.zone_id,
+      item.seat_id,
+      ticketCode,
+    ],
+    (ticketErr) => {
+
+      if (ticketErr) {
+
+        console.log(
+          ticketErr
+        );
+
+        return res
+          .status(500)
+          .send(
+            "Ticket Error"
+          );
+
+      }
+
+      console.log(
+        "TICKET CREATED:",
+        ticketCode
+      );
+
+      processNextItem();
+
+    }
+  );
+
+}
+
+);
+
+}
+
+processNextItem();
+
+
+        
 
       }
     );
