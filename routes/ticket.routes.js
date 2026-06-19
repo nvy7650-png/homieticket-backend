@@ -230,7 +230,7 @@ router.get(
         e.title AS event_title,
         e.image_url,
 
-        s.seat_code,
+         e.location,
 
         st.start_time
 
