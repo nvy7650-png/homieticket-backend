@@ -92,11 +92,22 @@ checkSql,
     VALUES ?
   `;
 
-  const expiresAt =
-  new Date(
-    Date.now() +
-    10 * 60 * 1000
-  );
+  const expiresAt = new Date(
+  Date.now() + 10 * 60 * 1000
+);
+
+const expiresAtString =
+  `${expiresAt.getFullYear()}-${
+    String(expiresAt.getMonth() + 1).padStart(2, "0")
+  }-${
+    String(expiresAt.getDate()).padStart(2, "0")
+  } ${
+    String(expiresAt.getHours()).padStart(2, "0")
+  }:${
+    String(expiresAt.getMinutes()).padStart(2, "0")
+  }:${
+    String(expiresAt.getSeconds()).padStart(2, "0")
+  }`;
 
 const insertValues = values.map(
   (v) => [
@@ -105,7 +116,7 @@ const insertValues = values.map(
     v[2],
     v[3],
     v[4],
-    expiresAt,
+    expiresAtString,
     "ACTIVE",
   ]
 );
@@ -141,7 +152,7 @@ const insertValues = values.map(
       
       return res.json({
   message: "Giữ ghế thành công",
-  expires_at: expiresAt,
+  expires_at: expiresAt.toISOString(),
 });
     }
   );
