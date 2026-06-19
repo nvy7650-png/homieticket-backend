@@ -92,22 +92,25 @@ checkSql,
     VALUES ?
   `;
 
+  console.log("SERVER NOW:", new Date());
+console.log("SERVER NOW ISO:", new Date().toISOString());
+
+console.log("EXPIRES:", expiresAt);
+console.log("EXPIRES ISO:", expiresAt.toISOString());
+
   const expiresAt = new Date(
   Date.now() + 10 * 60 * 1000
 );
 
 const expiresAtString =
-  `${expiresAt.getFullYear()}-${
-    String(expiresAt.getMonth() + 1).padStart(2, "0")
-  }-${
-    String(expiresAt.getDate()).padStart(2, "0")
-  } ${
-    String(expiresAt.getHours()).padStart(2, "0")
-  }:${
-    String(expiresAt.getMinutes()).padStart(2, "0")
-  }:${
-    String(expiresAt.getSeconds()).padStart(2, "0")
-  }`;
+  expiresAt
+    .toLocaleString(
+      "sv-SE",
+      {
+        timeZone: "Asia/Ho_Chi_Minh",
+      }
+    )
+    .replace(" ", " ");
 
 const insertValues = values.map(
   (v) => [
