@@ -78,87 +78,107 @@ checkSql,
     ]
   );
 
-  const insertSql = `
-    INSERT INTO ticket_holds
-    (
-      user_id,
-      event_id,
-      showtime_id,
-      zone_id,
-      seat_id,
-      expires_at,
-      status
-    )
-    VALUES ?
-  `;
+  const insertSql = `  INSERT INTO ticket_holds
+  (
+    user_id,
+    event_id,
+    showtime_id,
+    zone_id,
+    seat_id,
+    expires_at,
+    status
+  )
+  VALUES ?`;
 
-  console.log("SERVER NOW:", new Date());
-console.log("SERVER NOW ISO:", new Date().toISOString());
+const expiresAt = new Date(
+Date.now() + 10 * 60 * 1000
+);
+
+console.log("SERVER NOW:", new Date());
+console.log(
+"SERVER NOW ISO:",
+new Date().toISOString()
+);
 
 console.log("EXPIRES:", expiresAt);
-console.log("EXPIRES ISO:", expiresAt.toISOString());
+console.log(
+"EXPIRES ISO:",
+expiresAt.toISOString()
+);
 
-  const expiresAt = new Date(
-  Date.now() + 10 * 60 * 1000
+console.log(
+"EXPIRES VN:",
+expiresAt.toLocaleString(
+"vi-VN",
+{
+timeZone:
+"Asia/Ho_Chi_Minh",
+}
+)
 );
 
 const expiresAtString =
-  expiresAt
-    .toLocaleString(
-      "sv-SE",
-      {
-        timeZone: "Asia/Ho_Chi_Minh",
-      }
-    )
-    .replace(" ", " ");
-
-const insertValues = values.map(
-  (v) => [
-    v[0],
-    v[1],
-    v[2],
-    v[3],
-    v[4],
-    expiresAtString,
-    "ACTIVE",
-  ]
+expiresAt.toLocaleString(
+"sv-SE",
+{
+timeZone:
+"Asia/Ho_Chi_Minh",
+}
 );
 
-  console.log("========== INSERT HOLD ==========");
-  console.log("INSERT VALUES:");
-  console.log(insertValues);
+const insertValues = values.map(
+(v) => [
+v[0],
+v[1],
+v[2],
+v[3],
+v[4],
+expiresAtString,
+"ACTIVE",
+]
+);
 
-  db.query(
-    insertSql,
-    [insertValues],
-    (insertErr, result) => {
+console.log(
+"========== INSERT HOLD =========="
+);
 
-      if (insertErr) {
+console.log("INSERT VALUES:");
+console.log(insertValues);
 
-        console.log(
-          "INSERT ERROR:",
-          insertErr
-        );
+db.query(
+insertSql,
+[insertValues],
+(insertErr, result) => {
 
-        return res.status(500).json({
-          message: "Server error",
-        });
+if (insertErr) {
 
-      }
-
-      console.log(
-        "INSERT SUCCESS:"
-      );
-
-      console.log(result);
-
-      
-      return res.json({
-  message: "Giữ ghế thành công",
-  expires_at: expiresAt.toISOString(),
-});
-    }
+  console.log(
+    "INSERT ERROR:",
+    insertErr
   );
+
+  return res.status(500).json({
+    message: "Server error",
+  });
+
+}
+
+console.log(
+  "INSERT SUCCESS:"
+);
+
+console.log(result);
+
+return res.json({
+  message:
+    "Giữ ghế thành công",
+  expires_at:
+    expiresAt.toISOString(),
+});
+
+}
+);
+
 
 }
 
