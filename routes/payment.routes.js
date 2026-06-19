@@ -3,7 +3,6 @@ const router = express.Router();
 
 const crypto = require("crypto");
 const qs = require("qs");
-const dateFormat = require("dateformat");
 
 function sortObject(obj) {
   let sorted = {};
@@ -72,10 +71,9 @@ router.post(
           .trim();
 
       const createDate =
-        dateFormat(
-          new Date(),
-          "yyyymmddHHMMss"
-        );
+  moment().format(
+    "YYYYMMDDHHmmss"
+  );
 
       let vnp_Params = {};
 
