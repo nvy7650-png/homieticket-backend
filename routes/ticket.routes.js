@@ -10,7 +10,6 @@ router.get(
      SELECT
   t.id,
   t.ticket_code,
-  t.qr_code,
   t.status,
   t.standing_number,
 
