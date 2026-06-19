@@ -544,8 +544,6 @@ router.post("/:id/pay", (req, res) => {
                       const ticketCode =
                         `HMT-${orderId}-${item.seat_id}-${Date.now()}`;
 
-                      const qrCode =
-                        ticketCode;
 
                       const insertTicketSql = `
                         INSERT INTO tickets
@@ -557,12 +555,11 @@ router.post("/:id/pay", (req, res) => {
                           zone_id,
                           seat_id,
                           ticket_code,
-                          qr_code,
                           status
                         )
                         VALUES
                         (
-                          ?, ?, ?, ?, ?, ?, ?, ?, 'VALID'
+                          ?, ?, ?, ?, ?, ?, ?, 'VALID'
                         )
                       `;
 
@@ -576,7 +573,6 @@ router.post("/:id/pay", (req, res) => {
                           item.zone_id,
                           item.seat_id,
                           ticketCode,
-                          qrCode,
                         ],
                         (ticketErr) => {
 

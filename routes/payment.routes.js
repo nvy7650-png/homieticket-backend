@@ -286,36 +286,75 @@ router.get(
 
           }
 
-          const updateHoldSql = `
-            UPDATE ticket_holds
-            SET status = 'CONFIRMED'
-            WHERE user_id = (
-              SELECT user_id
-              FROM orders
-              WHERE id = ?
-            )
-            AND status = 'ACTIVE'
-          `;
+         const orderSql = `
+  SELECT *
+  FROM orders
+  WHERE id = ?
+`;
 
-          db.query(
-            updateHoldSql,
-            [orderId],
-            (err2) => {
+db.query(
+  orderSql,
+  [orderId],
+  (orderErr, orderRows) => {
 
-              if (err2) {
+    if (
+      orderErr ||
+      !orderRows.length
+    ) {
 
-                console.log(
-                  err2
-                );
+      console.log(
+        orderErr
+      );
 
-              }
+      return res
+        .status(500)
+        .send(
+          "Order Error"
+        );
 
-              return res.redirect(
-                `https://homieticket.vercel.app/payment-success?vnp_ResponseCode=00&vnp_TxnRef=${orderId}`
-              );
+    }
 
-            }
+    const order =
+      orderRows[0];
+
+    const itemsSql = `
+      SELECT *
+      FROM order_items
+      WHERE order_id = ?
+    `;
+
+    db.query(
+      itemsSql,
+      [orderId],
+      (
+        itemErr,
+        items
+      ) => {
+
+        if (itemErr) {
+
+          console.log(
+            itemErr
           );
+
+          return res
+            .status(500)
+            .send(
+              "Items Error"
+            );
+
+        }
+
+        console.log(
+          "ORDER ITEMS:",
+          items.length
+        );
+
+      }
+    );
+
+  }
+);
 
         }
       );
