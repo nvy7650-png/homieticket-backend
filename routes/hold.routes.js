@@ -91,19 +91,32 @@ checkSql,
     VALUES ?
   `;
 
-  const insertValues = values.map(
-    (v) => [
-      v[0],
-      v[1],
-      v[2],
-      v[3],
-      v[4],
-      new Date(
-        Date.now() + 15 * 60 * 1000
-      ),
-      "ACTIVE",
-    ]
+  const expiresAt =
+  new Date(
+    Date.now() + 15 * 60 * 1000
   );
+
+console.log(
+  "NOW:",
+  new Date()
+);
+
+console.log(
+  "EXPIRES:",
+  expiresAt
+);
+
+const insertValues = values.map(
+  (v) => [
+    v[0],
+    v[1],
+    v[2],
+    v[3],
+    v[4],
+    expiresAt,
+    "ACTIVE",
+  ]
+);
 
   console.log("========== INSERT HOLD ==========");
   console.log("INSERT VALUES:");
