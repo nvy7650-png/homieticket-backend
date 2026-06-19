@@ -79,6 +79,8 @@ router.get("/:id", (req, res) => {
       ON s.id = t.seat_id
     LEFT JOIN zones z
       ON z.id = t.zone_id
+      LEFT JOIN showtimes st
+  ON st.id = t.showtime_id
     WHERE t.id = ?
   `;
 
