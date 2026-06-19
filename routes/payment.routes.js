@@ -345,7 +345,7 @@ db.query(
 
         }
 
-        cconsole.log(
+        console.log(
 "ORDER ITEMS:",
 items.length
 );
