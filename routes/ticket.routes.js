@@ -12,13 +12,13 @@ router.get(
   t.ticket_code,
   t.qr_code,
   t.status,
+  t.standing_number,
 
   e.id AS event_id,
   e.title AS event_title,
   e.location,
 
   s.seat_code,
-
   z.name AS zone_name,
 
   st.start_time
