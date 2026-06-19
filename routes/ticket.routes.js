@@ -9,18 +9,19 @@ router.get("/my/:userId", (req, res) => {
 
   const sql = `
     SELECT
-      t.id,
-      t.ticket_code,
-      t.qr_code,
-      t.status,
+  t.id,
+  t.ticket_code,
+  t.qr_code,
+  t.status,
 
-      e.title AS event_title,
+  e.id AS event_id,
+  e.title AS event_title,
+  e.location,
+  e.image_url,
 
-      s.seat_code,
+  st.start_time,
 
-      z.name AS zone_name,
-
-      t.issued_at
+  t.issued_at
 
     FROM tickets t
 
@@ -32,6 +33,8 @@ router.get("/my/:userId", (req, res) => {
 
     LEFT JOIN zones z
       ON z.id = t.zone_id
+    LEFT JOIN showtimes st
+  ON st.id = t.showtime_id
 
     WHERE t.user_id = ?
 
@@ -69,8 +72,6 @@ router.get("/:id", (req, res) => {
     SELECT
       t.*,
       e.title AS event_title,
-      s.seat_code,
-      z.name AS zone_name
     FROM tickets t
     LEFT JOIN events e
       ON e.id = t.event_id
