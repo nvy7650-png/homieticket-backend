@@ -530,6 +530,27 @@ db.query(
     }
 
     const user = userResult[0];
+
+    const statSql = `
+  SELECT
+
+    COUNT(*) AS total_orders,
+
+    COALESCE(
+      SUM(
+        CASE
+          WHEN status = 'PAID'
+          THEN total_price
+          ELSE 0
+        END
+      ),
+      0
+    ) AS total_spent
+
+  FROM orders
+
+  WHERE user_id = ?
+`;
     if (user.role === "ORGANIZER") {
 
   const organizerStatSql = `
@@ -833,6 +854,99 @@ db.query(
 );
 
 }
+);
+
+// =============================
+// GET PROFILE
+// =============================
+router.get(
+  "/profile/:id",
+  (req, res) => {
+
+    db.query(
+      `
+      SELECT
+        id,
+        name,
+        email,
+        phone
+      FROM users
+      WHERE id = ?
+      `,
+      [req.params.id],
+      (err, result) => {
+
+        if (err) {
+
+          return res.status(500).json({
+            message: "Server error",
+          });
+
+        }
+
+        if (!result.length) {
+
+          return res.status(404).json({
+            message:
+              "Không tìm thấy tài khoản",
+          });
+
+        }
+
+        res.json(
+          result[0]
+        );
+
+      }
+    );
+
+  }
+);
+// =============================
+// UPDATE PROFILE
+// =============================
+router.put(
+  "/profile/:id",
+  (req, res) => {
+
+    const {
+      name,
+      phone,
+    } = req.body;
+
+    db.query(
+      `
+      UPDATE users
+      SET
+        name = ?,
+        phone = ?
+      WHERE id = ?
+      `,
+      [
+        name,
+        phone,
+        req.params.id,
+      ],
+      (err) => {
+
+        if (err) {
+
+          return res.status(500).json({
+            message:
+              "Cập nhật thất bại",
+          });
+
+        }
+
+        res.json({
+          message:
+            "Cập nhật thành công",
+        });
+
+      }
+    );
+
+  }
 );
 
 module.exports = router;
