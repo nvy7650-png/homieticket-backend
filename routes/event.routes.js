@@ -60,46 +60,69 @@ const upload = multer({
 // ============================
 router.get("/", (req, res) => {
 
-  const sql = `
-  SELECT
-    e.*,
-    c.name AS category_name,
+  const categoryId =
+    req.query.category;
 
-    MIN(s.start_time) AS first_showtime,
+  let sql = `
+    SELECT
+      e.*,
+      c.name AS category_name,
 
-    (
-      SELECT MIN(z.price)
-      FROM zones z
-      WHERE z.event_id = e.id
-    ) AS min_price
+      MIN(s.start_time) AS first_showtime,
 
-  FROM events e
+      (
+        SELECT MIN(z.price)
+        FROM zones z
+        WHERE z.event_id = e.id
+      ) AS min_price
 
-  LEFT JOIN categories c
-    ON e.category_id = c.id
+    FROM events e
 
-  LEFT JOIN showtimes s
-    ON s.event_id = e.id
+    LEFT JOIN categories c
+      ON e.category_id = c.id
 
-  WHERE e.status = 'APPROVED'
+    LEFT JOIN showtimes s
+      ON s.event_id = e.id
 
-  GROUP BY e.id
+    WHERE e.status = 'APPROVED'
+  `;
 
-  ORDER BY e.created_at DESC
-`;
+  const params = [];
 
-  db.query(sql, (err, results) => {
+  if (categoryId) {
 
-    if (err) {
-      console.log(err);
-      return res.status(500).json({
-        message: "Lỗi server",
-      });
+    sql += `
+      AND e.category_id = ?
+    `;
+
+    params.push(categoryId);
+
+  }
+
+  sql += `
+    GROUP BY e.id
+    ORDER BY e.created_at DESC
+  `;
+
+  db.query(
+    sql,
+    params,
+    (err, results) => {
+
+      if (err) {
+
+        console.log(err);
+
+        return res.status(500).json({
+          message: "Lỗi server",
+        });
+
+      }
+
+      res.json(results);
+
     }
-
-    res.json(results);
-
-  });
+  );
 
 });
 
