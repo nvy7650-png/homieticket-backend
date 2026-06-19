@@ -7,7 +7,7 @@ router.get(
   (req, res) => {
 
     const sql = `
-      SELECT
+     SELECT
   t.id,
   t.ticket_code,
   t.qr_code,
@@ -17,12 +17,22 @@ router.get(
   e.title AS event_title,
   e.location,
 
+  s.seat_code,
+
+  z.name AS zone_name,
+
   st.start_time
 
 FROM tickets t
 
 LEFT JOIN events e
 ON t.event_id = e.id
+
+LEFT JOIN seats s
+ON t.seat_id = s.id
+
+LEFT JOIN zones z
+ON t.zone_id = z.id
 
 LEFT JOIN showtimes st
 ON t.showtime_id = st.id
