@@ -212,5 +212,61 @@ router.post("/checkin", (req, res) => {
 
 });
 
+router.get(
+  "/my-tickets/:userId",
+  (req, res) => {
+
+    const sql = `
+      SELECT
+
+        t.id,
+        t.ticket_code,
+        t.status,
+
+        e.id AS event_id,
+        e.title AS event_title,
+        e.image_url,
+
+        s.seat_code,
+
+        st.start_time
+
+      FROM tickets t
+
+      LEFT JOIN events e
+      ON t.event_id = e.id
+
+      LEFT JOIN seats s
+      ON t.seat_id = s.id
+
+      LEFT JOIN showtimes st
+      ON t.showtime_id = st.id
+
+      WHERE t.user_id = ?
+
+      ORDER BY t.id DESC
+    `;
+
+    db.query(
+      sql,
+      [req.params.userId],
+      (err, result) => {
+
+        if (err) {
+
+          return res.status(500).json({
+            message: "Server error",
+          });
+
+        }
+
+        res.json(result);
+
+      }
+    );
+
+  }
+);
+
 
 module.exports = router;
