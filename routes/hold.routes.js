@@ -162,4 +162,78 @@ const insertValues = values.map(
 
 });
 
+// DELETE /api/holds/release
+router.delete(
+  "/release",
+  (req, res) => {
+
+    const {
+      user_id,
+      showtime_id,
+      seat_ids,
+    } = req.body;
+
+    if (
+      !user_id ||
+      !showtime_id ||
+      !seat_ids?.length
+    ) {
+
+      return res
+        .status(400)
+        .json({
+          message:
+            "Thiếu dữ liệu",
+        });
+
+    }
+
+    const placeholders =
+      seat_ids
+        .map(() => "?")
+        .join(",");
+
+    const sql = `
+      DELETE
+      FROM ticket_holds
+      WHERE user_id = ?
+      AND showtime_id = ?
+      AND seat_id IN (${placeholders})
+      AND status = 'ACTIVE'
+    `;
+
+    db.query(
+      sql,
+      [
+        user_id,
+        showtime_id,
+        ...seat_ids,
+      ],
+      (err, result) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res
+            .status(500)
+            .json({
+              message:
+                "Server error",
+            });
+
+        }
+
+        res.json({
+          success: true,
+          affectedRows:
+            result.affectedRows,
+        });
+
+      }
+    );
+
+  }
+);
+
 module.exports = router;
