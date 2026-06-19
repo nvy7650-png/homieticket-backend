@@ -5,6 +5,18 @@ const crypto = require("crypto");
 const qs = require("qs");
 const moment = require("moment");
 
+function sortObject(obj) {
+
+  let sorted = {};
+  let keys = Object.keys(obj).sort();
+
+  keys.forEach((key) => {
+    sorted[key] = obj[key];
+  });
+
+  return sorted;
+}
+
 router.post(
 "/create",
 async (req, res) => {
@@ -101,34 +113,62 @@ try {
     "vnp_CreateDate"
   ] = createDate;
 
+
+
   vnp_Params =
-    Object.fromEntries(
-      Object.entries(
-        vnp_Params
-      ).sort()
-    );
+  sortObject(vnp_Params);
 
-  const signData =
-    qs.stringify(
-      vnp_Params,
-      {
-        encode: false,
-      }
-    );
+const signData =
+  qs.stringify(
+    vnp_Params,
+    {
+      encode: false,
+    }
+  );
 
-  const signed =
-    crypto
-      .createHmac(
-        "sha512",
-        secretKey
+console.log(
+  "===================="
+);
+
+console.log(
+  "TMNCODE:",
+  tmnCode
+);
+
+console.log(
+  "SECRET:",
+  secretKey
+);
+
+console.log(
+  "SIGN DATA:"
+);
+
+console.log(signData);
+
+console.log(
+  "===================="
+);
+
+const signed =
+  crypto
+    .createHmac(
+      "sha512",
+      secretKey
+    )
+    .update(
+      Buffer.from(
+        signData,
+        "utf-8"
       )
-      .update(
-        Buffer.from(
-          signData,
-          "utf-8"
-        )
-      )
-      .digest("hex");
+    )
+    .digest("hex");
+
+console.log(
+  "SIGNATURE:"
+);
+
+console.log(signed);
 
   vnp_Params[
     "vnp_SecureHash"
