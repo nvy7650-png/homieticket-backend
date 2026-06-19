@@ -124,10 +124,12 @@ const signData =
   qs.stringify(
     vnp_Params,
     {
-      encode: false,
+      encode: true,
     }
   );
 
+  console.log("PAYMENT URL:");
+console.log(paymentUrl);
 console.log(
   "===================="
 );
