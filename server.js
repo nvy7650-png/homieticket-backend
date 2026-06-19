@@ -25,6 +25,11 @@ const holdRoutes = require("./routes/hold.routes");
 const orderRoutes =
   require("./routes/order.routes");
 
+const paymentRoutes =
+require("./routes/payment.routes");
+
+
+
 
 
 const app = express();
@@ -105,6 +110,12 @@ app.use(
   holdRoutes
 );
 
+// PAYMENT
+app.use(
+  "/api/payment",
+  paymentRoutes
+);
+
 // ============================
 // TEST API
 // ============================
@@ -132,3 +143,4 @@ app.listen(PORT, () => {
   );
 
 });
+
