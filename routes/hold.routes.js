@@ -149,6 +149,11 @@ const insertValues = values.map(
 
       console.log(result);
 
+      console.log(
+  "EXPIRES AT:",
+  expiresAt
+);
+
       return res.json({
   message: "Giữ ghế thành công",
   expires_at: expiresAt,
