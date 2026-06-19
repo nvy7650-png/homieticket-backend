@@ -76,6 +76,16 @@ router.get("/", (req, res) => {
         WHERE z.event_id = e.id
       ) AS min_price
 
+      ,
+
+(
+  SELECT COUNT(*)
+  FROM tickets t
+  WHERE
+    t.event_id = e.id
+    AND t.status = 'VALID'
+) AS sold_count
+
     FROM events e
 
     LEFT JOIN categories c
@@ -1416,10 +1426,10 @@ router.put(
     const sql = `
 
       UPDATE events
-
-      SET status = 'APPROVED'
-
-      WHERE id = ?
+SET
+  status = 'APPROVED',
+  approved_at = NOW()
+WHERE id = ?
 
     `;
 
