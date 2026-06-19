@@ -95,19 +95,9 @@ checkSql,
   const expiresAt =
   new Date(
     Date.now() +
-    (7 * 60 * 60 * 1000) +
-    (15 * 60 * 1000)
+    (10 * 60 * 1000)
   );
 
-console.log(
-  "NOW:",
-  new Date()
-);
-
-console.log(
-  "EXPIRES:",
-  expiresAt
-);
 
 const insertValues = values.map(
   (v) => [
@@ -149,11 +139,7 @@ const insertValues = values.map(
 
       console.log(result);
 
-      console.log(
-  "EXPIRES AT:",
-  expiresAt
-);
-
+      
       return res.json({
   message: "Giữ ghế thành công",
   expires_at: expiresAt,
