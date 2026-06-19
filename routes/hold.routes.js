@@ -212,6 +212,25 @@ router.delete(
 
     }
 
+    console.log(
+      "========== RELEASE HOLD =========="
+    );
+
+    console.log(
+      "USER:",
+      user_id
+    );
+
+    console.log(
+      "SHOWTIME:",
+      showtime_id
+    );
+
+    console.log(
+      "SEATS:",
+      seat_ids
+    );
+
     const placeholders =
       seat_ids
         .map(() => "?")
@@ -226,25 +245,6 @@ router.delete(
       AND status = 'ACTIVE'
     `;
 
-    console.log(
-  "========== RELEASE HOLD =========="
-);
-
-console.log(
-  "USER:",
-  user_id
-);
-
-console.log(
-  "SHOWTIME:",
-  showtime_id
-);
-
-console.log(
-  "SEATS:",
-  seat_ids
-);
-
     db.query(
       sql,
       [
@@ -256,7 +256,10 @@ console.log(
 
         if (err) {
 
-          console.log(err);
+          console.log(
+            "RELEASE ERROR:",
+            err
+          );
 
           return res
             .status(500)
@@ -267,7 +270,16 @@ console.log(
 
         }
 
-        res.json({
+        console.log(
+          "RELEASE SUCCESS:"
+        );
+
+        console.log(
+          "AFFECTED ROWS:",
+          result.affectedRows
+        );
+
+        return res.json({
           success: true,
           affectedRows:
             result.affectedRows,
