@@ -57,7 +57,7 @@ router.post(
         process.env.VNP_URL;
 
       const returnUrl =
-        "https://homieticket.vercel.app/payment-success";
+`${process.env.API_URL}/api/payment/vnpay-return`;
 
       const ipAddr =
         (
@@ -216,6 +216,114 @@ router.post(
           message:
             "Server error",
         });
+
+    }
+
+  }
+);
+
+const db = require("../db");
+
+router.get(
+  "/vnpay-return",
+  (req, res) => {
+
+    try {
+
+      const orderId =
+        req.query.vnp_TxnRef;
+
+      const responseCode =
+        req.query.vnp_ResponseCode;
+
+      console.log(
+        "========== VNPAY RETURN =========="
+      );
+
+      console.log(
+        "ORDER:",
+        orderId
+      );
+
+      console.log(
+        "RESPONSE:",
+        responseCode
+      );
+
+      if (
+        responseCode !== "00"
+      ) {
+
+        return res.redirect(
+          `https://homieticket.vercel.app/payment-success?vnp_ResponseCode=${responseCode}`
+        );
+
+      }
+
+      const updateOrderSql = `
+        UPDATE orders
+        SET status = 'PAID'
+        WHERE id = ?
+      `;
+
+      db.query(
+        updateOrderSql,
+        [orderId],
+        (err) => {
+
+          if (err) {
+
+            console.log(err);
+
+            return res.status(500).send(
+              "DB Error"
+            );
+
+          }
+
+          const updateHoldSql = `
+            UPDATE ticket_holds
+            SET status = 'CONFIRMED'
+            WHERE user_id = (
+              SELECT user_id
+              FROM orders
+              WHERE id = ?
+            )
+            AND status = 'ACTIVE'
+          `;
+
+          db.query(
+            updateHoldSql,
+            [orderId],
+            (err2) => {
+
+              if (err2) {
+
+                console.log(
+                  err2
+                );
+
+              }
+
+              return res.redirect(
+                `https://homieticket.vercel.app/payment-success?vnp_ResponseCode=00&vnp_TxnRef=${orderId}`
+              );
+
+            }
+          );
+
+        }
+      );
+
+    } catch (err) {
+
+      console.log(err);
+
+      return res
+        .status(500)
+        .send(
+          "Server Error"
+        );
 
     }
 
