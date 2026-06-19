@@ -56,6 +56,11 @@ router.post(
       const vnpUrl =
         process.env.VNP_URL;
 
+        console.log(
+  "API_URL:",
+  process.env.API_URL
+);
+
       const returnUrl =
 `${process.env.API_URL}/api/payment/vnpay-return`;
 
