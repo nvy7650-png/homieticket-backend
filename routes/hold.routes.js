@@ -93,7 +93,9 @@ checkSql,
 
   const expiresAt =
   new Date(
-    Date.now() + 15 * 60 * 1000
+    Date.now() +
+    (15 * 60 * 1000) +
+    (7 * 60 * 60 * 1000)
   );
 
 console.log(
