@@ -210,7 +210,27 @@ router.post("/checkin", (req, res) => {
   );
 
 });
+router.get(
+  "/organizer/:organizerId",
+  (req, res) => {
 
+    console.log(
+      "ORGANIZER:",
+      req.params.organizerId
+    );
+
+    res.json([
+      {
+        event_id: 1,
+        title: "TEST EVENT",
+        status: "APPROVED",
+        total_tickets: 100,
+        sold_tickets: 20,
+      },
+    ]);
+
+  }
+);
 
 
 
