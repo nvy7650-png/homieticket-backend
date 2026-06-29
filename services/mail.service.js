@@ -1,29 +1,26 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
   secure: false,
 
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-
-  tls: {
-    rejectUnauthorized: false,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
   },
 });
 
-
 async function sendTestMail(email) {
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: `"HOMIETICKET" <${process.env.SMTP_USER}>`,
     to: email,
-    subject: "Test HOMIETICKET",
+
+    subject: "HOMIETICKET TEST",
+
     html: `
-      <h2>HOMIETICKET</h2>
-      <p>Gửi mail thành công 🎉</p>
+      <h2>🎉 HOMIETICKET</h2>
+      <p>Gửi mail thành công bằng Brevo.</p>
     `,
   });
 }
