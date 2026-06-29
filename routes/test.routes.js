@@ -26,5 +26,30 @@ router.get("/mail", async (req, res) => {
 
   }
 });
+router.get("/mail", async (req, res) => {
+  try {
 
+    console.log("HOST:", process.env.SMTP_HOST);
+    console.log("PORT:", process.env.SMTP_PORT);
+    console.log("USER:", process.env.SMTP_USER);
+    console.log("PASS:", !!process.env.SMTP_PASS);
+
+    await sendTestMail(
+      "violet200204@gmail.com"
+    );
+
+    res.json({
+      message: "OK"
+    });
+
+  } catch (err) {
+
+    console.log("FULL ERROR:");
+    console.log(err);
+
+    res.status(500).json({
+      error: err.message
+    });
+  }
+});
 module.exports = router;
