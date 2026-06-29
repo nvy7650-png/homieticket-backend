@@ -144,3 +144,9 @@ app.listen(PORT, () => {
 
 });
 
+const revenueRoutes =
+  require("./routes/revenue.routes");
+  app.use(
+  "/api/revenue",
+  revenueRoutes
+);
