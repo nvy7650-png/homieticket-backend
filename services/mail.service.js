@@ -41,6 +41,57 @@ async function sendTestMail(email) {
   });
 }
 
+async function sendTicketMail(
+  email,
+  orderId,
+  tickets
+) {
+
+  const ticketHtml =
+    tickets.map(ticket => `
+      <li>
+        ${ticket.ticket_code}
+      </li>
+    `).join("");
+
+  await transporter.sendMail({
+
+    from: {
+      name: "HOMIETICKET",
+      address: "violet200204@gmail.com",
+    },
+
+    to: email,
+
+    subject: `Vé điện tử #${orderId}`,
+
+    html: `
+      <h2>🎫 HOMIETICKET</h2>
+
+      <p>
+        Thanh toán thành công.
+      </p>
+
+      <p>
+        Mã đơn:
+        <b>#${orderId}</b>
+      </p>
+
+      <h3>Vé của bạn:</h3>
+
+      <ul>
+        ${ticketHtml}
+      </ul>
+
+      <p>
+        Cảm ơn bạn đã sử dụng HOMIETICKET.
+      </p>
+    `,
+  });
+
+}
+
 module.exports = {
   sendTestMail,
+  sendTicketMail,
 };

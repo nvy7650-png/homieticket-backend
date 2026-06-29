@@ -5,6 +5,10 @@ const crypto = require("crypto");
 const qs = require("qs");
 const moment = require("moment");
 
+const {
+  sendTicketMail,
+} = require("../services/mail.service");
+
 function sortObject(obj) {
   let sorted = {};
   let str = [];
@@ -287,9 +291,20 @@ router.get(
           }
 
          const orderSql = `
-  SELECT *
-  FROM orders
-  WHERE id = ?
+  SELECT
+
+    o.*,
+
+    u.name,
+
+    u.email
+
+  FROM orders o
+
+  JOIN users u
+    ON u.id = o.user_id
+
+  WHERE o.id = ?
 `;
 
 db.query(
@@ -316,6 +331,11 @@ db.query(
 
     const order =
       orderRows[0];
+
+      console.log(
+  "EMAIL:",
+  order.email
+);
 
     const itemsSql = `
       SELECT *
@@ -351,10 +371,28 @@ items.length
 );
 
 let idx = 0;
+const createdTickets = [];
 
 function processNextItem() {
 
+
 if (idx >= items.length) {
+    sendTicketMail(
+  order.email,
+  orderId,
+  createdTickets
+)
+.then(() => {
+  console.log(
+    "EMAIL SENT"
+  );
+})
+.catch((err) => {
+  console.log(
+    "EMAIL ERROR:",
+    err
+  );
+});
 
 const deleteHoldSql = `
   DELETE FROM ticket_holds
@@ -486,6 +524,10 @@ item.seat_id,
         "TICKET CREATED:",
         ticketCode
       );
+
+      createdTickets.push({
+  ticket_code: ticketCode,
+});
 
       processNextItem();
 
