@@ -274,6 +274,68 @@ router.get(
 
   }
 );
+router.get(
+  "/event/:eventId",
+  (req, res) => {
 
+    const eventId =
+      req.params.eventId;
+
+    const sql = `
+      SELECT
+        t.id,
+        t.ticket_code,
+        t.status,
+
+        z.name AS zone_name,
+
+        s.seat_code,
+
+        st.start_time,
+
+        u.full_name AS user_name,
+        u.email
+
+      FROM tickets t
+
+      LEFT JOIN users u
+      ON u.id = t.user_id
+
+      LEFT JOIN zones z
+      ON z.id = t.zone_id
+
+      LEFT JOIN seats s
+      ON s.id = t.seat_id
+
+      LEFT JOIN showtimes st
+      ON st.id = t.showtime_id
+
+      WHERE t.event_id = ?
+
+      ORDER BY t.id DESC
+    `;
+
+    db.query(
+      sql,
+      [eventId],
+      (err, rows) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res.status(500).json({
+            message: "Server error",
+          });
+
+        }
+
+        res.json(rows);
+
+      }
+    );
+
+  }
+);
 
 module.exports = router;
