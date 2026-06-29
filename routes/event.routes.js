@@ -1526,5 +1526,42 @@ router.get(
   }
 );
 
+// GET organizer events
+router.get(
+  "/organizer/:organizerId",
+  (req, res) => {
 
+    const organizerId =
+      req.params.organizerId;
+
+    const sql = `
+      SELECT
+        id,
+        title
+      FROM events
+      WHERE organizer_id = ?
+      AND status = 'APPROVED'
+      ORDER BY id DESC
+    `;
+
+    db.query(
+      sql,
+      [organizerId],
+      (err, rows) => {
+
+        if (err) {
+          console.log(err);
+
+          return res.status(500).json({
+            message: "Server error",
+          });
+        }
+
+        res.json(rows);
+
+      }
+    );
+
+  }
+);
 module.exports = router;
