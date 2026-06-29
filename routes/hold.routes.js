@@ -16,22 +16,25 @@ const {
 user_id,
 event_id,
 showtime_id,
-zone_id,
-seat_ids,
+seats,
 } = req.body;
 
 if (
-!user_id ||
-!event_id ||
-!showtime_id ||
-!zone_id ||
-!seat_ids ||
-!seat_ids.length
+  !user_id ||
+  !event_id ||
+  !showtime_id ||
+  !seats ||
+  !seats.length
 ) {
 return res.status(400).json({
 message: "Thiếu dữ liệu",
 });
 }
+
+const seat_ids =
+  seats.map(
+    (seat) => seat.id
+  );
 
 const placeholders =
 seat_ids.map(() => "?").join(",");
@@ -52,7 +55,7 @@ checkSql,
 
   console.log("========== HOLD CHECK ==========");
   console.log("SHOWTIME:", showtime_id);
-  console.log("SEAT_IDS:", seat_ids);
+  console.log("SEAT_IDS:", seats);
   console.log("FOUND_ROWS:", rows);
 
   if (err) {
@@ -75,16 +78,15 @@ checkSql,
 
 }
 
-  const values = seat_ids.map(
-    (seatId) => [
-      user_id,
-      event_id,
-      showtime_id,
-      zone_id,
-      seatId,
-    ]
-  );
-
+  const values = seats.map(
+  (seat) => [
+    user_id,
+    event_id,
+    showtime_id,
+    seat.zone_id,
+    seat.id,
+  ]
+);
   const insertSql = `  INSERT INTO ticket_holds
   (
     user_id,
@@ -125,13 +127,10 @@ timeZone:
 );
 
 const expiresAtString =
-expiresAt.toLocaleString(
-"sv-SE",
-{
-timeZone:
-"Asia/Ho_Chi_Minh",
-}
-);
+expiresAt
+  .toISOString()
+  .slice(0, 19)
+  .replace("T", " ");
 
 const insertValues = values.map(
 (v) => [
