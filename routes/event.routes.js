@@ -373,54 +373,71 @@ router.get(
       req.params.id;
 
     const sql = `
+SELECT
 
-      SELECT
-        COUNT(*) AS totalEvents
+  (
+    SELECT COUNT(*)
+    FROM events
+    WHERE organizer_id = ?
+  ) AS totalEvents,
 
-      FROM events
+  (
+    SELECT COUNT(*)
+    FROM tickets t
+    JOIN events e
+    ON e.id = t.event_id
+    WHERE e.organizer_id = ?
+  ) AS totalTickets,
 
-      WHERE organizer_id = ?
+  (
+    SELECT COALESCE(
+      SUM(o.total_price),
+      0
+    )
+    FROM orders o
+    JOIN events e
+    ON e.id = o.event_id
+    WHERE e.organizer_id = ?
+    AND o.status = 'PAID'
+  ) AS revenue
+`;
 
-    `;
-
-    db.query(
-
-      sql,
-
-      [organizerId],
-
-      (err, results) => {
+   db.query(
+  sql,
+  [
+    organizerId,
+    organizerId,
+    organizerId
+  ],
+      (err, rows) => {
 
         if (err) {
 
           console.log(err);
 
-          return res
-            .status(500)
-            .json({
-              message: "Lỗi server",
-            });
+          return res.status(500).json({
+            message: "Lỗi server",
+          });
 
         }
 
         res.json({
 
           totalEvents:
-            results[0]
-              .totalEvents,
+            rows[0].totalEvents || 0,
 
-          totalTickets: 0,
+          totalTickets:
+            rows[0].totalTickets || 0,
 
-          revenue: 0,
+          revenue:
+            rows[0].revenue || 0,
 
         });
 
       }
-
     );
 
   }
-
 );
 
 
