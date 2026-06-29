@@ -214,24 +214,66 @@ router.get(
   "/organizer/:organizerId",
   (req, res) => {
 
-    console.log(
-      "ORGANIZER:",
-      req.params.organizerId
-    );
+    const organizerId =
+      req.params.organizerId;
 
-    res.json([
-      {
-        event_id: 1,
-        title: "TEST EVENT",
-        status: "APPROVED",
-        total_tickets: 100,
-        sold_tickets: 20,
-      },
-    ]);
+    const sql = `
+      SELECT
+        e.id AS event_id,
+        e.title,
+        e.status,
+
+        COUNT(t.id) AS sold_tickets,
+
+        (
+          SELECT COUNT(*)
+          FROM seats s
+          INNER JOIN zones z
+          ON s.zone_id = z.id
+          WHERE z.event_id = e.id
+        ) AS total_tickets,
+
+        (
+          SELECT COUNT(*)
+          FROM tickets tk
+          WHERE tk.event_id = e.id
+          AND tk.status = 'USED'
+        ) AS checked_in
+
+      FROM events e
+
+      LEFT JOIN tickets t
+      ON t.event_id = e.id
+
+      WHERE e.organizer_id = ?
+
+      GROUP BY e.id
+
+      ORDER BY e.id DESC
+    `;
+
+    db.query(
+      sql,
+      [organizerId],
+      (err, rows) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res.status(500).json({
+            message: "Server error",
+          });
+
+        }
+
+        res.json(rows);
+
+      }
+    );
 
   }
 );
-
 
 
 module.exports = router;
