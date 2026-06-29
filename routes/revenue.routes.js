@@ -9,36 +9,37 @@ router.get(
     const organizerId =
       req.params.organizerId;
 
-    const sql = `
-      SELECT
-        e.id,
-        e.title,
+   const sql = `
+SELECT
+    e.id,
+    e.title,
 
-        COUNT(t.id) AS sold_tickets,
+    (
+        SELECT COUNT(*)
+        FROM tickets t
+        WHERE t.event_id = e.id
+    ) AS sold_tickets,
 
-        SUM(z.price) AS revenue,
+    (
+        SELECT COUNT(*)
+        FROM tickets t
+        WHERE t.event_id = e.id
+        AND t.status = 'USED'
+    ) AS checked_in,
 
-        (
-          SELECT COUNT(*)
-          FROM tickets tk
-          WHERE tk.event_id = e.id
-          AND tk.status = 'USED'
-        ) AS checked_in
+    (
+        SELECT COALESCE(SUM(o.total_price),0)
+        FROM orders o
+        WHERE o.event_id = e.id
+        AND o.status = 'PAID'
+    ) AS revenue
 
-      FROM events e
+FROM events e
 
-      LEFT JOIN tickets t
-      ON t.event_id = e.id
+WHERE e.organizer_id = ?
 
-      LEFT JOIN zones z
-      ON z.id = t.zone_id
-
-      WHERE e.organizer_id = ?
-
-      GROUP BY e.id
-
-      ORDER BY revenue DESC
-    `;
+ORDER BY revenue DESC
+`;
 
     db.query(
       sql,
