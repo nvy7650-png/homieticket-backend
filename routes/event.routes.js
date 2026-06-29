@@ -6,48 +6,10 @@ const db = require("../db");
 
 const multer = require("multer");
 
-const path = require("path");
+const {
+  storage,
+} = require("../config/cloudinary");
 
-const fs = require("fs");
-
-
-// ============================
-// CREATE UPLOADS FOLDER
-// ============================
-
-if (!fs.existsSync("uploads")) {
-
-  fs.mkdirSync("uploads");
-
-}
-
-
-// ============================
-// MULTER CONFIG
-// ============================
-
-const storage = multer.diskStorage({
-
-  destination: (req, file, cb) => {
-
-    cb(null, "uploads/");
-
-  },
-
-  filename: (req, file, cb) => {
-
-    cb(
-
-      null,
-
-      Date.now() +
-      path.extname(file.originalname)
-
-    );
-
-  },
-
-});
 
 const upload = multer({
   storage,
@@ -936,7 +898,7 @@ router.post("/create-full",
 
       // IMAGE URL
       const image_url =
-        `/uploads/${req.file.filename}`;
+  req.file.path;
 
       // INSERT EVENT
       const eventSql = `
