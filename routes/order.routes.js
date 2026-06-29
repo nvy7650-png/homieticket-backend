@@ -7,7 +7,12 @@ const db = require("../db");
 // body: { user_id, event_id, items: [{ zone_id, seat_id, quantity, price }] }
 router.post("/", (req, res) => {
 
-  const { user_id, event_id, items } = req.body || {};
+  const {
+  user_id,
+  event_id,
+  promotion_id,
+  items
+} = req.body || {};
 
   if (!user_id || !event_id || !Array.isArray(items) || items.length === 0) {
 
@@ -84,14 +89,28 @@ router.post("/", (req, res) => {
       }
 
       const insertOrderSql = `
-        INSERT INTO orders
-          (user_id, event_id, total_price, status)
-        VALUES (?, ?, ?, 'PENDING')
-      `;
+  INSERT INTO orders
+  (
+    user_id,
+    event_id,
+    promotion_id,
+    total_price,
+    status
+  )
+  VALUES
+  (
+    ?, ?, ?, ?, 'PENDING'
+  )
+`;
 
       db.query(
-        insertOrderSql,
-        [user_id, event_id, total_price],
+  insertOrderSql,
+  [
+    user_id,
+    event_id,
+    promotion_id,
+    total_price,
+  ],
         (err, result) => {
 
           if (err) {

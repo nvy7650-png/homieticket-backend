@@ -432,6 +432,28 @@ return db.query(
       "HOLDS DELETED"
     );
 
+    if (order.promotion_id) {
+
+  db.query(
+    `
+    UPDATE promotions
+    SET used_count =
+      used_count + 1
+    WHERE id = ?
+    `,
+    [order.promotion_id],
+    (promoErr) => {
+
+      if (promoErr) {
+        console.log(
+          promoErr
+        );
+      }
+
+    }
+  );
+
+}
     return res.redirect(
       `https://homieticket.vercel.app/payment-success?vnp_ResponseCode=00&vnp_TxnRef=${orderId}`
     );
