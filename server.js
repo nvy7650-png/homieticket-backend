@@ -157,3 +157,11 @@ const promotionRoutes =
   "/api/promotions",
   promotionRoutes
 );
+
+const testRoutes =
+  require("./routes/test.routes");
+
+app.use(
+  "/api/test",
+  testRoutes
+);
