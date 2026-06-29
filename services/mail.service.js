@@ -18,9 +18,21 @@ const transporter = nodemailer.createTransport({
   debug: true,
 });
 
+transporter.verify((err, success) => {
+  if (err) {
+    console.log("SMTP ERROR:");
+    console.log(err);
+  } else {
+    console.log("SMTP READY");
+  }
+});
+
 async function sendTestMail(email) {
   await transporter.sendMail({
-    from: '"HomieTicket" <violet200204@gmail.com>',
+    from: {
+  name: "HOMIETICKET",
+  address: "violet200204@gmail.com",
+},
     to: email,
 
     subject: "HOMIETICKET TEST",
