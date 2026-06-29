@@ -1,5 +1,7 @@
 const nodemailer = require("nodemailer");
 
+const dns = require("dns");
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT),
@@ -10,22 +12,17 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 
+  lookup(hostname, options, callback) {
+    return dns.lookup(
+      hostname,
+      { family: 4 },
+      callback
+    );
+  },
+
   connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
-
-  logger: true,
-  debug: true,
 });
 
-transporter.verify((err, success) => {
-  if (err) {
-    console.log("SMTP ERROR:");
-    console.log(err);
-  } else {
-    console.log("SMTP READY");
-  }
-});
 
 async function sendTestMail(email) {
   await transporter.sendMail({
