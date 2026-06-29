@@ -1,3 +1,10 @@
+const express = require("express");
+const router = express.Router();
+
+const {
+  sendTestMail,
+} = require("../services/mail.service");
+
 router.get("/mail", async (req, res) => {
   try {
 
@@ -6,7 +13,7 @@ router.get("/mail", async (req, res) => {
     );
 
     res.json({
-      message: "Gửi mail thành công"
+      message: "Gửi mail thành công",
     });
 
   } catch (err) {
@@ -14,8 +21,10 @@ router.get("/mail", async (req, res) => {
     console.log(err);
 
     res.status(500).json({
-      message: err.message
+      message: err.message,
     });
 
   }
 });
+
+module.exports = router;
