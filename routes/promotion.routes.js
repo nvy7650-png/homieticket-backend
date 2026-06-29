@@ -272,9 +272,6 @@ router.post(
       SELECT *
       FROM promotions
       WHERE code = ?
-      AND status = 'ACTIVE'
-      AND NOW() BETWEEN start_date
-      AND end_date
       AND (
         event_id IS NULL
         OR event_id = ?
@@ -287,26 +284,105 @@ router.post(
       (err, rows) => {
 
         if (err) {
-
           console.log(err);
 
           return res.status(500).json({
             message: "Server error",
           });
-
         }
 
         if (!rows.length) {
 
           return res.status(404).json({
             success: false,
-            message: "Mã không hợp lệ",
+            message: "Mã không tồn tại",
           });
 
         }
 
-        const promo =
-          rows[0];
+        const promo = rows[0];
+
+        const now = new Date();
+
+        const startDate =
+          new Date(promo.start_date);
+
+        const endDate =
+          new Date(promo.end_date);
+
+        // Chưa bắt đầu
+
+        if (now < startDate) {
+
+          return res.status(400).json({
+            success: false,
+            message:
+              "Mã chưa bắt đầu",
+          });
+
+        }
+
+        // Hết hạn
+
+        if (now > endDate) {
+
+          db.query(
+            `
+            UPDATE promotions
+            SET status = 'INACTIVE'
+            WHERE id = ?
+            `,
+            [promo.id]
+          );
+
+          return res.status(400).json({
+            success: false,
+            message:
+              "Mã đã hết hạn",
+          });
+
+        }
+
+        // Bị tắt
+
+        if (
+          promo.status !==
+          "ACTIVE"
+        ) {
+
+          return res.status(400).json({
+            success: false,
+            message:
+              "Mã đã ngừng hoạt động",
+          });
+
+        }
+
+        // Hết lượt dùng
+
+        if (
+          promo.used_count >=
+          promo.quantity
+        ) {
+
+          db.query(
+            `
+            UPDATE promotions
+            SET status = 'INACTIVE'
+            WHERE id = ?
+            `,
+            [promo.id]
+          );
+
+          return res.status(400).json({
+            success: false,
+            message:
+              "Mã đã hết lượt sử dụng",
+          });
+
+        }
+
+        // Chưa đủ tiền
 
         if (
           total_price <
