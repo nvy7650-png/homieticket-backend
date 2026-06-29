@@ -293,7 +293,7 @@ router.get(
 
         st.start_time,
 
-        u.full_name AS user_name,
+        u.name AS user_name,
         u.email
 
       FROM tickets t
