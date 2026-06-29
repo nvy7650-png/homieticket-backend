@@ -150,3 +150,10 @@ const revenueRoutes =
   "/api/revenue",
   revenueRoutes
 );
+
+const promotionRoutes =
+  require("./routes/promotion.routes");
+  app.use(
+  "/api/promotions",
+  promotionRoutes
+);
