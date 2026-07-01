@@ -466,6 +466,142 @@ return db.query(
 const item =
 items[idx++];
 
+const isAuto =
+  !item.seat_id;
+
+if (isAuto) {
+
+  const findSeatSql = `
+    SELECT seat_id
+    FROM showtime_seats
+    WHERE showtime_id = ?
+    AND zone_id = ?
+    AND status = 'AVAILABLE'
+    LIMIT ?
+  `;
+
+  return db.query(
+    findSeatSql,
+    [
+      item.showtime_id,
+      item.zone_id,
+      item.quantity,
+    ],
+    (seatErr, seatRows) => {
+
+      if (
+  seatRows.length <
+  item.quantity
+) {
+
+  return res
+    .status(400)
+    .send(
+      "Không đủ ghế"
+    );
+
+}
+
+      if (seatErr) {
+
+        console.log(seatErr);
+
+        return res
+          .status(500)
+          .send("Seat Error");
+
+      }
+
+      let autoIdx = 0;
+
+      function assignSeat() {
+
+        if (
+          autoIdx >= seatRows.length
+        ) {
+
+          return processNextItem();
+
+        }
+
+        const seatId =
+          seatRows[
+            autoIdx++
+          ].seat_id;
+
+        const soldSql = `
+          UPDATE showtime_seats
+          SET status = 'SOLD'
+          WHERE showtime_id = ?
+          AND seat_id = ?
+        `;
+
+        db.query(
+          soldSql,
+          [
+            item.showtime_id,
+            seatId,
+          ],
+          () => {
+
+            const ticketCode =
+              `HMT-${orderId}-${seatId}-${Date.now()}`;
+
+            const insertTicketSql = `
+              INSERT INTO tickets
+              (
+                order_item_id,
+                event_id,
+                showtime_id,
+                user_id,
+                zone_id,
+                seat_id,
+                ticket_code,
+                status
+              )
+              VALUES
+              (
+                ?, ?, ?, ?, ?, ?, ?, 'VALID'
+              )
+            `;
+
+            db.query(
+              insertTicketSql,
+              [
+                item.id,
+                order.event_id,
+                item.showtime_id,
+                order.user_id,
+                item.zone_id,
+                seatId,
+                ticketCode,
+              ],
+              () => {
+
+                createdTickets.push({
+  ticket_code:
+    ticketCode,
+
+  seat_id:
+    seatId,
+});
+                assignSeat();
+
+              }
+            );
+
+          }
+        );
+
+      }
+
+      assignSeat();
+
+    }
+  );
+
+}
+
 const soldSql = `     UPDATE showtime_seats
     SET status = 'SOLD'
     WHERE showtime_id = ?
@@ -564,8 +700,6 @@ item.seat_id,
 
 processNextItem();
 
-
-        
 
       }
     );

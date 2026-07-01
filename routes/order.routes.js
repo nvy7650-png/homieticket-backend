@@ -243,6 +243,8 @@ router.get("/:id", (req, res) => {
       z.id AS zone_id,
       z.name AS zone_name,
 
+      oi.quantity,
+
       s.id AS seat_id,
       s.seat_code
 
@@ -288,26 +290,50 @@ router.get("/:id", (req, res) => {
 
       const first = rows[0];
 
-      return res.json({
-        id: first.id,
-        total_price: first.total_price,
-        status: first.status,
+      const seats = rows
+  .filter(
+    (row) => row.seat_id
+  )
+  .map((row) => ({
+    id: row.seat_id,
+    seat_code:
+      row.seat_code,
+  }));
 
-        event: {
-          id: first.event_id,
-          title: first.event_title,
-        },
+const quantity =
+  rows.reduce(
+    (sum, row) =>
+      sum +
+      Number(
+        row.quantity || 0
+      ),
+    0
+  );
 
-        zone: {
-          id: first.zone_id,
-          name: first.zone_name,
-        },
+return res.json({
+  id: first.id,
+  total_price:
+    first.total_price,
 
-        seats: rows.map((row) => ({
-          id: row.seat_id,
-          seat_code: row.seat_code,
-        })),
-      });
+  status:
+    first.status,
+
+  event: {
+    id: first.event_id,
+    title:
+      first.event_title,
+  },
+
+  zone: {
+    id: first.zone_id,
+    name:
+      first.zone_name,
+  },
+
+  quantity,
+
+  seats,
+});
 
     }
   );
