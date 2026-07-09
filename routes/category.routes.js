@@ -57,4 +57,57 @@ router.put("/:id", (req, res) => {
 
 });
 
+// CREATE CATEGORY
+router.post("/", (req, res) => {
+
+  const { name, description } = req.body;
+
+  const sql = `
+    INSERT INTO categories
+    (name, description)
+    VALUES (?, ?)
+  `;
+
+  db.query(
+    sql,
+    [name, description],
+    (err, result) => {
+
+      if (err) {
+        return res.status(500).json(err);
+      }
+
+      res.json({
+        message: "Thêm danh mục thành công",
+        id: result.insertId,
+      });
+
+    }
+  );
+
+});
+// DELETE CATEGORY
+router.delete("/:id", (req, res) => {
+
+  const sql =
+    "DELETE FROM categories WHERE id = ?";
+
+  db.query(
+    sql,
+    [req.params.id],
+    (err) => {
+
+      if (err) {
+        return res.status(500).json(err);
+      }
+
+      res.json({
+        message: "Xóa danh mục thành công",
+      });
+
+    }
+  );
+
+});
+
 module.exports = router;
