@@ -290,7 +290,44 @@ router.get(
 
           }
 
-         const orderSql = `
+          const paymentSql = `
+  INSERT INTO payments
+  (
+    order_id,
+    payment_method,
+    amount,
+    transaction_code,
+    status,
+    paid_at
+  )
+  SELECT
+    id,
+    'VNPAY',
+    total_price,
+    ?,
+    'SUCCESS',
+    NOW()
+  FROM orders
+  WHERE id = ?
+`;
+
+          db.query(
+            paymentSql,
+            [
+              req.query.vnp_TransactionNo ||
+                `VNP-${orderId}`,
+              orderId,
+            ],
+            (paymentErr) => {
+
+              if (paymentErr) {
+                console.log(paymentErr);
+                return res
+                  .status(500)
+                  .send("Payment Error");
+              }
+
+              const orderSql = `
   SELECT
 
     o.*,
@@ -307,94 +344,93 @@ router.get(
   WHERE o.id = ?
 `;
 
-db.query(
-  orderSql,
-  [orderId],
-  (orderErr, orderRows) => {
+              db.query(
+                orderSql,
+                [orderId],
+                (orderErr, orderRows) => {
 
-    if (
-      orderErr ||
-      !orderRows.length
-    ) {
+                  if (
+                    orderErr ||
+                    !orderRows.length
+                  ) {
 
-      console.log(
-        orderErr
-      );
+                    console.log(
+                      orderErr
+                    );
 
-      return res
-        .status(500)
-        .send(
-          "Order Error"
-        );
+                    return res
+                      .status(500)
+                      .send(
+                        "Order Error"
+                      );
 
-    }
+                  }
 
-    const order =
-      orderRows[0];
+                  const order =
+                    orderRows[0];
 
-      console.log(
-  "EMAIL:",
-  order.email
-);
+                  console.log(
+                    "EMAIL:",
+                    order.email
+                  );
 
-    const itemsSql = `
+                  const itemsSql = `
       SELECT *
       FROM order_items
       WHERE order_id = ?
     `;
 
-    db.query(
-      itemsSql,
-      [orderId],
-      (
-        itemErr,
-        items
-      ) => {
+                  db.query(
+                    itemsSql,
+                    [orderId],
+                    (
+                      itemErr,
+                      items
+                    ) => {
 
-        if (itemErr) {
+                      if (itemErr) {
 
-          console.log(
-            itemErr
-          );
+                        console.log(
+                          itemErr
+                        );
 
-          return res
-            .status(500)
-            .send(
-              "Items Error"
-            );
+                        return res
+                          .status(500)
+                          .send(
+                            "Items Error"
+                          );
 
-        }
+                      }
 
-        console.log(
-"ORDER ITEMS:",
-items.length
-);
+                      console.log(
+                        "ORDER ITEMS:",
+                        items.length
+                      );
 
-let idx = 0;
-const createdTickets = [];
+                      let idx = 0;
+                      const createdTickets = [];
 
-function processNextItem() {
+                      function processNextItem() {
 
+                        if (idx >= items.length) {
+                          sendTicketMail(
+                            order.email,
+                            orderId,
+                            createdTickets
+                          )
+                            .then(() => {
+                              console.log(
+                                "EMAIL SENT"
+                              );
+                            })
+                            .catch((err) => {
+                              console.log(
+                                "EMAIL ERROR:",
+                                err
+                              );
+                            });
 
-if (idx >= items.length) {
-    sendTicketMail(
-  order.email,
-  orderId,
-  createdTickets
-)
-.then(() => {
-  console.log(
-    "EMAIL SENT"
-  );
-})
-.catch((err) => {
-  console.log(
-    "EMAIL ERROR:",
-    err
-  );
-});
-
-const deleteHoldSql = `
+                          const deleteHoldSql = `
   DELETE FROM ticket_holds
   WHERE user_id = ?
   AND event_id = ?
@@ -405,73 +441,73 @@ const deleteHoldSql = `
   )
 `;
 
-return db.query(
-  deleteHoldSql,
-  [
-    order.user_id,
-    order.event_id,
-    orderId,
-  ],
-  (holdErr) => {
+                          return db.query(
+                            deleteHoldSql,
+                            [
+                              order.user_id,
+                              order.event_id,
+                              orderId,
+                            ],
+                            (holdErr) => {
 
-    if (holdErr) {
+                              if (holdErr) {
 
-      console.log(
-        holdErr
-      );
+                                console.log(
+                                  holdErr
+                                );
 
-      return res
-        .status(500)
-        .send(
-          "Hold Error"
-        );
+                                return res
+                                  .status(500)
+                                  .send(
+                                    "Hold Error"
+                                  );
 
-    }
+                              }
 
-    console.log(
-      "HOLDS DELETED"
-    );
+                              console.log(
+                                "HOLDS DELETED"
+                              );
 
-    if (order.promotion_id) {
+                              if (order.promotion_id) {
 
-  db.query(
-    `
+                                db.query(
+                                  `
     UPDATE promotions
     SET used_count =
       used_count + 1
     WHERE id = ?
     `,
-    [order.promotion_id],
-    (promoErr) => {
+                                  [order.promotion_id],
+                                  (promoErr) => {
 
-      if (promoErr) {
-        console.log(
-          promoErr
-        );
-      }
+                                    if (promoErr) {
+                                      console.log(
+                                        promoErr
+                                      );
+                                    }
 
-    }
-  );
+                                  }
+                                );
 
-}
-    return res.redirect(
-      `https://homieticket.vercel.app/payment-success?vnp_ResponseCode=00&vnp_TxnRef=${orderId}`
-    );
+                              }
 
-  }
-);
+                              return res.redirect(
+                                `https://homieticket.vercel.app/payment-success?vnp_ResponseCode=00&vnp_TxnRef=${orderId}`
+                              );
 
-}
+                            }
+                          );
+                        }
 
-const item =
-items[idx++];
+                        const item =
+                          items[idx++];
 
-const isAuto =
-  !item.seat_id;
+                        const isAuto =
+                          !item.seat_id;
 
-if (isAuto) {
+                        if (isAuto) {
 
-  const findSeatSql = `
+                          const findSeatSql = `
     SELECT seat_id
     FROM showtime_seats
     WHERE showtime_id = ?
@@ -480,74 +516,74 @@ if (isAuto) {
     LIMIT ?
   `;
 
-  return db.query(
-    findSeatSql,
-    [
-      item.showtime_id,
-      item.zone_id,
-      item.quantity,
-    ],
-    (seatErr, seatRows) => {
+                          return db.query(
+                            findSeatSql,
+                            [
+                              item.showtime_id,
+                              item.zone_id,
+                              item.quantity,
+                            ],
+                            (seatErr, seatRows) => {
 
-      if (
-  seatRows.length <
-  item.quantity
-) {
+                              if (
+                                seatRows.length <
+                                item.quantity
+                              ) {
 
-  return res
-    .status(400)
-    .send(
-      "Không đủ ghế"
-    );
+                                return res
+                                  .status(400)
+                                  .send(
+                                    "Không đủ ghế"
+                                  );
 
-}
+                              }
 
-      if (seatErr) {
+                              if (seatErr) {
 
-        console.log(seatErr);
+                                console.log(seatErr);
 
-        return res
-          .status(500)
-          .send("Seat Error");
+                                return res
+                                  .status(500)
+                                  .send("Seat Error");
 
-      }
+                              }
 
-      let autoIdx = 0;
+                              let autoIdx = 0;
 
-      function assignSeat() {
+                              function assignSeat() {
 
-        if (
-          autoIdx >= seatRows.length
-        ) {
+                                if (
+                                  autoIdx >= seatRows.length
+                                ) {
 
-          return processNextItem();
+                                  return processNextItem();
 
-        }
+                                }
 
-        const seatId =
-          seatRows[
-            autoIdx++
-          ].seat_id;
+                                const seatId =
+                                  seatRows[
+                                    autoIdx++
+                                  ].seat_id;
 
-        const soldSql = `
+                                const soldSql = `
           UPDATE showtime_seats
           SET status = 'SOLD'
           WHERE showtime_id = ?
           AND seat_id = ?
         `;
 
-        db.query(
-          soldSql,
-          [
-            item.showtime_id,
-            seatId,
-          ],
-          () => {
+                                db.query(
+                                  soldSql,
+                                  [
+                                    item.showtime_id,
+                                    seatId,
+                                  ],
+                                  () => {
 
-            const ticketCode =
-              `HMT-${orderId}-${seatId}-${Date.now()}`;
+                                    const ticketCode =
+                                      `HMT-${orderId}-${seatId}-${Date.now()}`;
 
-            const insertTicketSql = `
+                                    const insertTicketSql = `
               INSERT INTO tickets
               (
                 order_item_id,
@@ -565,75 +601,75 @@ if (isAuto) {
               )
             `;
 
-            db.query(
-              insertTicketSql,
-              [
-                item.id,
-                order.event_id,
-                item.showtime_id,
-                order.user_id,
-                item.zone_id,
-                seatId,
-                ticketCode,
-              ],
-              () => {
+                                    db.query(
+                                      insertTicketSql,
+                                      [
+                                        item.id,
+                                        order.event_id,
+                                        item.showtime_id,
+                                        order.user_id,
+                                        item.zone_id,
+                                        seatId,
+                                        ticketCode,
+                                      ],
+                                      () => {
 
-                createdTickets.push({
-  ticket_code:
-    ticketCode,
+                                        createdTickets.push({
+                                          ticket_code:
+                                            ticketCode,
 
-  seat_id:
-    seatId,
-});
-                assignSeat();
+                                          seat_id:
+                                            seatId,
+                                        });
+                                        assignSeat();
 
-              }
-            );
+                                      }
+                                    );
 
-          }
-        );
+                                  }
+                                );
 
-      }
+                              }
 
-      assignSeat();
+                              assignSeat();
 
-    }
-  );
+                            }
+                          );
 
-}
+                        }
 
-const soldSql = `     UPDATE showtime_seats
+                        const soldSql = `     UPDATE showtime_seats
     SET status = 'SOLD'
     WHERE showtime_id = ?
     AND seat_id = ?
   `;
 
-db.query(
-soldSql,
-[
-item.showtime_id,
-item.seat_id,
-],
-(soldErr) => {
+                        db.query(
+                          soldSql,
+                          [
+                            item.showtime_id,
+                            item.seat_id,
+                          ],
+                          (soldErr) => {
 
-  if (soldErr) {
+                            if (soldErr) {
 
-    console.log(
-      soldErr
-    );
+                              console.log(
+                                soldErr
+                              );
 
-    return res
-      .status(500)
-      .send(
-        "Sold Error"
-      );
+                              return res
+                                .status(500)
+                                .send(
+                                  "Sold Error"
+                                );
 
-  }
+                            }
 
-  const ticketCode =
-    `HMT-${orderId}-${item.seat_id}-${Date.now()}`;
+                            const ticketCode =
+                              `HMT-${orderId}-${item.seat_id}-${Date.now()}`;
 
-  const insertTicketSql = `
+                            const insertTicketSql = `
     INSERT INTO tickets
     (
       order_item_id,
@@ -651,61 +687,62 @@ item.seat_id,
     )
   `;
 
-  db.query(
-    insertTicketSql,
-    [
-      item.id,
-      order.event_id,
-      item.showtime_id,
-      order.user_id,
-      item.zone_id,
-      item.seat_id,
-      ticketCode,
-    ],
-    (ticketErr) => {
+                            db.query(
+                              insertTicketSql,
+                              [
+                                item.id,
+                                order.event_id,
+                                item.showtime_id,
+                                order.user_id,
+                                item.zone_id,
+                                item.seat_id,
+                                ticketCode,
+                              ],
+                              (ticketErr) => {
 
-      if (ticketErr) {
+                                if (ticketErr) {
 
-        console.log(
-          ticketErr
-        );
+                                  console.log(
+                                    ticketErr
+                                  );
 
-        return res
-          .status(500)
-          .send(
-            "Ticket Error"
+                                  return res
+                                    .status(500)
+                                    .send(
+                                      "Ticket Error"
+                                    );
+
+                                }
+
+                                console.log(
+                                  "TICKET CREATED:",
+                                  ticketCode
+                                );
+
+                                createdTickets.push({
+                                  ticket_code: ticketCode,
+                                });
+
+                                processNextItem();
+
+                              }
+                            );
+
+                          }
+                        );
+
+                      }
+
+                      processNextItem();
+
+                    }
+                  );
+
+                }
+              );
+
+            }
           );
-
-      }
-
-      console.log(
-        "TICKET CREATED:",
-        ticketCode
-      );
-
-      createdTickets.push({
-  ticket_code: ticketCode,
-});
-
-      processNextItem();
-
-    }
-  );
-
-}
-
-);
-
-}
-
-processNextItem();
-
-
-      }
-    );
-
-  }
-);
 
         }
       );
@@ -725,5 +762,4 @@ processNextItem();
   }
 );
 
-module.exports =
-  router;
+module.exports = router;
