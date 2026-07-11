@@ -1,11 +1,12 @@
 const express = require("express");
+
 const router = express.Router();
+
 const db = require("../db");
 
-
-// ======================
+// ======================================
 // GET ORGANIZER PROMOTIONS
-// ======================
+// ======================================
 
 router.get(
   "/organizer/:organizerId",
@@ -17,17 +18,12 @@ router.get(
     const sql = `
       SELECT
         p.*,
-
         e.title AS event_title
-
       FROM promotions p
-
       LEFT JOIN events e
-      ON e.id = p.event_id
-
+        ON e.id = p.event_id
       WHERE p.organizer_id = ?
-
-      ORDER BY p.id DESC
+      ORDER BY p.created_at DESC
     `;
 
     db.query(
@@ -40,6 +36,7 @@ router.get(
           console.log(err);
 
           return res.status(500).json({
+            success: false,
             message: "Server error",
           });
 
@@ -53,92 +50,285 @@ router.get(
   }
 );
 
-
-// ======================
+// ======================================
 // CREATE PROMOTION
-// ======================
+// ======================================
 
 router.post(
   "/",
   (req, res) => {
 
     const {
+
       organizer_id,
+
       event_id,
+
       code,
+
       name,
+
       description,
+
       discount_type,
+
       discount_value,
+
       min_order_value,
+
       max_discount,
+
       quantity,
+
       start_date,
+
       end_date,
+
     } = req.body;
 
-    const sql = `
-      INSERT INTO promotions
-      (
-        organizer_id,
-        event_id,
-        code,
-        name,
-        description,
-        discount_type,
-        discount_value,
-        min_order_value,
-        max_discount,
-        quantity,
-        start_date,
-        end_date
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    // ==========================
+    // VALIDATE
+    // ==========================
+
+    if (
+      !code ||
+      !event_id
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Thiếu dữ liệu.",
+      });
+
+    }
+
+    if (
+      Number(discount_value) <= 0
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Giá trị giảm phải lớn hơn 0.",
+      });
+
+    }
+
+    if (
+
+      discount_type ===
+        "PERCENT" &&
+
+      Number(discount_value) >
+        100
+
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Giảm % không được lớn hơn 100.",
+      });
+
+    }
+
+    if (
+      Number(quantity) <= 0
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Số lượng phải lớn hơn 0.",
+      });
+
+    }
+
+    if (
+
+      new Date(end_date) <=
+      new Date(start_date)
+
+    ) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Ngày kết thúc phải lớn hơn ngày bắt đầu.",
+
+      });
+
+    }
+
+    // ==========================
+    // CHECK DUPLICATE CODE
+    // ==========================
 
     db.query(
-      sql,
-      [
-        organizer_id,
-        event_id,
-        code,
-        name,
-        description,
-        discount_type,
-        discount_value,
-        min_order_value,
-        max_discount,
-        quantity,
-        start_date,
-        end_date,
-      ],
-      (err, result) => {
 
-        if (err) {
+      `
+      SELECT id
+      FROM promotions
+      WHERE code = ?
+      `,
+      [code],
 
-          console.log(err);
+      (checkErr, rows) => {
+
+        if (checkErr) {
+
+          console.log(checkErr);
 
           return res.status(500).json({
-            message: "Server error",
+
+            success: false,
+
+            message:
+              "Server error",
+
           });
 
         }
 
-        res.json({
-          success: true,
-          id: result.insertId,
-        });
+        if (rows.length) {
+
+          return res.status(400).json({
+
+            success: false,
+
+            message:
+              "Mã giảm giá đã tồn tại.",
+
+          });
+
+        }
+
+        // ==========================
+        // INSERT
+        // ==========================
+
+        const sql = `
+
+          INSERT INTO promotions
+
+          (
+
+            organizer_id,
+
+            event_id,
+
+            code,
+
+            name,
+
+            description,
+
+            discount_type,
+
+            discount_value,
+
+            min_order_value,
+
+            max_discount,
+
+            quantity,
+
+            start_date,
+
+            end_date,
+
+            status
+
+          )
+
+          VALUES
+
+          (
+
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE'
+
+          )
+
+        `;
+
+        db.query(
+
+          sql,
+
+          [
+
+            organizer_id,
+
+            event_id,
+
+            code.trim().toUpperCase(),
+
+            name,
+
+            description,
+
+            discount_type,
+
+            discount_value,
+
+            min_order_value,
+
+            max_discount,
+
+            quantity,
+
+            start_date,
+
+            end_date,
+
+          ],
+
+          (err, result) => {
+
+            if (err) {
+
+              console.log(err);
+
+              return res.status(500).json({
+
+                success: false,
+
+                message:
+                  "Server error",
+
+              });
+
+            }
+
+            res.json({
+
+              success: true,
+
+              id:
+                result.insertId,
+
+              message:
+                "Tạo mã thành công.",
+
+            });
+
+          }
+
+        );
 
       }
+
     );
 
   }
+
 );
-
-
-// ======================
+// ======================================
 // UPDATE PROMOTION
-// ======================
+// ======================================
 
 router.put(
   "/:id",
@@ -148,298 +338,391 @@ router.put(
       req.params.id;
 
     const {
-      name,
-      description,
-      discount_type,
-      discount_value,
-      min_order_value,
-      max_discount,
-      quantity,
-      start_date,
-      end_date,
-      status,
-    } = req.body;
 
-    const sql = `
-      UPDATE promotions
-      SET
-        name = ?,
-        description = ?,
-        discount_type = ?,
-        discount_value = ?,
-        min_order_value = ?,
-        max_discount = ?,
-        quantity = ?,
-        start_date = ?,
-        end_date = ?,
-        status = ?
-      WHERE id = ?
-    `;
-
-    db.query(
-      sql,
-      [
-        name,
-        description,
-        discount_type,
-        discount_value,
-        min_order_value,
-        max_discount,
-        quantity,
-        start_date,
-        end_date,
-        status,
-        promotionId,
-      ],
-      (err) => {
-
-        if (err) {
-
-          console.log(err);
-
-          return res.status(500).json({
-            message: "Server error",
-          });
-
-        }
-
-        res.json({
-          success: true,
-        });
-
-      }
-    );
-
-  }
-);
-
-
-// ======================
-// DELETE PROMOTION
-// ======================
-
-router.delete(
-  "/:id",
-  (req, res) => {
-
-    const sql = `
-      DELETE
-      FROM promotions
-      WHERE id = ?
-    `;
-
-    db.query(
-      sql,
-      [req.params.id],
-      (err) => {
-
-        if (err) {
-
-          console.log(err);
-
-          return res.status(500).json({
-            message: "Server error",
-          });
-
-        }
-
-        res.json({
-          success: true,
-        });
-
-      }
-    );
-
-  }
-);
-
-
-// ======================
-// APPLY PROMOTION
-// ======================
-
-router.post(
-  "/apply",
-  (req, res) => {
-
-    const {
-      code,
-      total_price,
       event_id,
+
+      code,
+
+      name,
+
+      description,
+
+      discount_type,
+
+      discount_value,
+
+      min_order_value,
+
+      max_discount,
+
+      quantity,
+
+      start_date,
+
+      end_date,
+
     } = req.body;
 
-    const sql = `
+    // ==========================
+    // VALIDATE
+    // ==========================
+
+    if (
+      !code ||
+      !event_id
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Thiếu dữ liệu.",
+      });
+
+    }
+
+    if (
+      Number(discount_value) <= 0
+    ) {
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Giá trị giảm phải lớn hơn 0.",
+      });
+
+    }
+
+    if (
+
+      discount_type ===
+        "PERCENT" &&
+
+      Number(discount_value) >
+        100
+
+    ) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Giảm % không được lớn hơn 100.",
+
+      });
+
+    }
+
+    if (
+      Number(quantity) <= 0
+    ) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Số lượng phải lớn hơn 0.",
+
+      });
+
+    }
+
+    if (
+
+      new Date(end_date) <=
+      new Date(start_date)
+
+    ) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Ngày kết thúc phải lớn hơn ngày bắt đầu.",
+
+      });
+
+    }
+
+    // ==========================
+    // GET CURRENT PROMOTION
+    // ==========================
+
+    db.query(
+
+      `
       SELECT *
       FROM promotions
-      WHERE code = ?
-      AND (
-        event_id IS NULL
-        OR event_id = ?
-      )
-    `;
+      WHERE id = ?
+      `,
+      [promotionId],
 
-    db.query(
-      sql,
-      [code, event_id],
-      (err, rows) => {
+      (findErr, rows) => {
 
-        if (err) {
-          console.log(err);
+        if (findErr) {
+
+          console.log(findErr);
 
           return res.status(500).json({
-            message: "Server error",
+
+            success: false,
+
+            message:
+              "Server error",
+
           });
+
         }
 
         if (!rows.length) {
 
           return res.status(404).json({
+
             success: false,
-            message: "Mã không tồn tại",
-          });
 
-        }
-
-        const promo = rows[0];
-
-        const now = new Date();
-
-        const startDate =
-          new Date(promo.start_date);
-
-        const endDate =
-          new Date(promo.end_date);
-
-        // Chưa bắt đầu
-
-        if (now < startDate) {
-
-          return res.status(400).json({
-            success: false,
             message:
-              "Mã chưa bắt đầu",
+              "Không tìm thấy mã giảm giá.",
+
           });
 
         }
 
-        // Hết hạn
+        const promotion =
+          rows[0];
 
-        if (now > endDate) {
-
-          db.query(
-            `
-            UPDATE promotions
-            SET status = 'INACTIVE'
-            WHERE id = ?
-            `,
-            [promo.id]
-          );
-
-          return res.status(400).json({
-            success: false,
-            message:
-              "Mã đã hết hạn",
-          });
-
-        }
-
-        // Bị tắt
+        // ==========================
+        // KHÔNG CHO SỬA
+        // ĐÃ HẾT HẠN
+        // ==========================
 
         if (
-          promo.status !==
-          "ACTIVE"
+
+          new Date() >
+          new Date(
+            promotion.end_date
+          )
+
         ) {
 
           return res.status(400).json({
+
             success: false,
+
             message:
-              "Mã đã ngừng hoạt động",
+              "Mã đã hết hạn, không thể chỉnh sửa.",
+
           });
 
         }
 
-        // Hết lượt dùng
+        // ==========================
+        // KHÔNG CHO SỬA
+        // ĐÃ DÙNG HẾT
+        // ==========================
 
         if (
-          promo.used_count >=
-          promo.quantity
-        ) {
 
-          db.query(
-            `
-            UPDATE promotions
-            SET status = 'INACTIVE'
-            WHERE id = ?
-            `,
-            [promo.id]
-          );
+          promotion.used_count >=
+          promotion.quantity
 
-          return res.status(400).json({
-            success: false,
-            message:
-              "Mã đã hết lượt sử dụng",
-          });
-
-        }
-
-        // Chưa đủ tiền
-
-        if (
-          total_price <
-          promo.min_order_value
         ) {
 
           return res.status(400).json({
+
             success: false,
+
             message:
-              "Chưa đạt giá trị tối thiểu",
+              "Mã đã sử dụng hết lượt.",
+
           });
 
         }
 
-        let discount = 0;
+        // ==========================
+        // KHÔNG CHO
+        // quantity < used_count
+        // ==========================
 
         if (
-          promo.discount_type ===
-          "PERCENT"
+
+          Number(quantity) <
+          promotion.used_count
+
         ) {
 
-          discount =
-            total_price *
-            promo.discount_value /
-            100;
+          return res.status(400).json({
 
-          if (
-            promo.max_discount &&
-            discount >
-            promo.max_discount
-          ) {
+            success: false,
 
-            discount =
-              promo.max_discount;
+            message:
+              "Số lượng không được nhỏ hơn số lượt đã sử dụng.",
+
+          });
+
+        }
+
+        // ==========================
+        // CHECK DUPLICATE CODE
+        // ==========================
+
+        db.query(
+
+          `
+          SELECT id
+          FROM promotions
+          WHERE code = ?
+          AND id <> ?
+          `,
+
+          [
+
+            code,
+
+            promotionId,
+
+          ],
+
+          (dupErr, dupRows) => {
+
+            if (dupErr) {
+
+              console.log(dupErr);
+
+              return res.status(500).json({
+
+                success: false,
+
+                message:
+                  "Server error",
+
+              });
+
+            }
+
+            if (
+              dupRows.length
+            ) {
+
+              return res.status(400).json({
+
+                success: false,
+
+                message:
+                  "Mã giảm giá đã tồn tại.",
+
+              });
+
+            }
+
+            // ==========================
+            // UPDATE
+            // ==========================
+
+            const sql = `
+
+              UPDATE promotions
+
+              SET
+
+                event_id = ?,
+
+                code = ?,
+
+                name = ?,
+
+                description = ?,
+
+                discount_type = ?,
+
+                discount_value = ?,
+
+                min_order_value = ?,
+
+                max_discount = ?,
+
+                quantity = ?,
+
+                start_date = ?,
+
+                end_date = ?
+
+              WHERE id = ?
+
+            `;
+
+            db.query(
+
+              sql,
+
+              [
+
+                event_id,
+
+                code.trim().toUpperCase(),
+
+                name,
+
+                description,
+
+                discount_type,
+
+                discount_value,
+
+                min_order_value,
+
+                max_discount,
+
+                quantity,
+
+                start_date,
+
+                end_date,
+
+                promotionId,
+
+              ],
+
+              (err) => {
+
+                if (err) {
+
+                  console.log(err);
+
+                  return res.status(500).json({
+
+                    success: false,
+
+                    message:
+                      "Server error",
+
+                  });
+
+                }
+
+                res.json({
+
+                  success: true,
+
+                  message:
+                    "Cập nhật thành công.",
+
+                });
+
+              }
+
+            );
 
           }
 
-        } else {
-
-          discount =
-            promo.discount_value;
-
-        }
-
-        return res.json({
-          success: true,
-          promotion: promo,
-          discount,
-          final_price:
-            total_price -
-            discount,
-        });
+        );
 
       }
+
     );
 
   }
-);
 
+);
 module.exports = router;
