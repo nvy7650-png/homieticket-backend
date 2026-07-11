@@ -725,4 +725,251 @@ router.put(
   }
 
 );
+// ======================================
+// APPLY PROMOTION
+// ======================================
+
+router.post(
+  "/apply",
+  (req, res) => {
+
+    const {
+
+      code,
+
+      total_price,
+
+      event_id,
+
+    } = req.body;
+
+    db.query(
+
+      `
+      SELECT *
+      FROM promotions
+      WHERE code = ?
+      AND (
+        event_id IS NULL
+        OR event_id = ?
+      )
+      `,
+
+      [
+
+        code.trim().toUpperCase(),
+
+        event_id,
+
+      ],
+
+      (err, rows) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res.status(500).json({
+
+            success:false,
+
+            message:"Server error",
+
+          });
+
+        }
+
+        if (!rows.length) {
+
+          return res.status(404).json({
+
+            success:false,
+
+            message:"Mã không tồn tại.",
+
+          });
+
+        }
+
+        const promo =
+          rows[0];
+
+        const now =
+          new Date();
+
+        // =======================
+        // HẾT HẠN
+        // =======================
+
+        if (
+
+          now >
+          new Date(
+            promo.end_date
+          )
+
+        ) {
+
+          return res.status(400).json({
+
+            success:false,
+
+            message:"Mã đã hết hạn.",
+
+          });
+
+        }
+
+        // =======================
+        // CHƯA BẮT ĐẦU
+        // =======================
+
+        if (
+
+          now <
+          new Date(
+            promo.start_date
+          )
+
+        ) {
+
+          return res.status(400).json({
+
+            success:false,
+
+            message:"Mã chưa bắt đầu.",
+
+          });
+
+        }
+
+        // =======================
+        // HẾT LƯỢT
+        // =======================
+
+        if (
+
+          promo.used_count >=
+          promo.quantity
+
+        ) {
+
+          return res.status(400).json({
+
+            success:false,
+
+            message:"Mã đã hết lượt sử dụng.",
+
+          });
+
+        }
+
+        // =======================
+        // MIN ORDER
+        // =======================
+
+        if (
+
+          Number(total_price) <
+          Number(
+            promo.min_order_value
+          )
+
+        ) {
+
+          return res.status(400).json({
+
+            success:false,
+
+            message:
+              "Đơn hàng chưa đạt giá trị tối thiểu.",
+
+          });
+
+        }
+
+        // =======================
+        // DISCOUNT
+        // =======================
+
+        let discount = 0;
+
+        if (
+
+          promo.discount_type ===
+          "PERCENT"
+
+        ) {
+
+          discount =
+            Number(total_price) *
+
+            Number(
+              promo.discount_value
+            ) / 100;
+
+          if (
+
+            promo.max_discount &&
+
+            discount >
+
+            promo.max_discount
+
+          ) {
+
+            discount =
+              Number(
+                promo.max_discount
+              );
+
+          }
+
+        }
+
+        else {
+
+          discount =
+            Number(
+              promo.discount_value
+            );
+
+        }
+
+        if (
+
+          discount >
+          total_price
+
+        ) {
+
+          discount =
+            total_price;
+
+        }
+
+        return res.json({
+
+          success:true,
+
+          promotion:promo,
+
+          discount,
+
+          final_price:
+
+            Number(total_price) -
+
+            discount,
+
+        });
+
+      }
+
+    );
+
+  }
+
+);
+
 module.exports = router;
