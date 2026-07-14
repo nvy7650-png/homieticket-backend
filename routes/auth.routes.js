@@ -3,7 +3,9 @@ const express = require("express");
 const router = express.Router();
 
 const db = require("../db");
-
+const {
+  sendOTP,
+} = require("../services/mail.service");
 
 // =============================
 // REGISTER USER
@@ -948,5 +950,477 @@ router.put(
 
   }
 );
+// =============================
+// FORGOT PASSWORD
+// =============================
 
+router.post(
+  "/forgot-password",
+  (req, res) => {
+
+    const { email } = req.body;
+
+    if (!email) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message: "Vui lòng nhập email."
+
+      });
+
+    }
+
+    db.query(
+
+      `
+      SELECT id
+      FROM users
+      WHERE email = ?
+      `,
+
+      [email],
+
+      async (err, rows) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res.status(500).json({
+
+            success: false,
+
+            message: "Server error"
+
+          });
+
+        }
+
+        if (!rows.length) {
+
+          return res.status(404).json({
+
+            success: false,
+
+            message: "Email không tồn tại."
+
+          });
+
+        }
+
+        const otp = Math.floor(
+
+          100000 +
+
+          Math.random() * 900000
+
+        ).toString();
+
+        const expiredAt =
+
+          new Date(
+
+            Date.now() +
+
+            5 * 60 * 1000
+
+          );
+
+        db.query(
+
+          `
+          UPDATE users
+          SET
+            reset_otp = ?,
+            otp_expired_at = ?
+          WHERE email = ?
+          `,
+
+          [
+
+            otp,
+
+            expiredAt,
+
+            email
+
+          ],
+
+          async (updateErr) => {
+
+            if (updateErr) {
+
+              console.log(updateErr);
+
+              return res.status(500).json({
+
+                success: false,
+
+                message: "Không thể tạo OTP."
+
+              });
+
+            }
+
+            try {
+
+              await sendOTP(
+
+                email,
+
+                otp
+
+              );
+
+              return res.json({
+
+                success: true,
+
+                message:
+
+                  "OTP đã được gửi tới email."
+
+              });
+
+            }
+
+            catch (mailErr) {
+
+              console.log(mailErr);
+
+              return res.status(500).json({
+
+                success: false,
+
+                message:
+
+                  "Không gửi được email."
+
+              });
+
+            }
+
+          }
+
+        );
+
+      }
+
+    );
+
+  }
+
+);
+
+// =============================
+// VERIFY OTP
+// =============================
+
+router.post(
+  "/verify-otp",
+  (req, res) => {
+
+    const {
+
+      email,
+
+      otp,
+
+    } = req.body;
+
+    db.query(
+
+      `
+      SELECT
+        reset_otp,
+        otp_expired_at
+      FROM users
+      WHERE email = ?
+      `,
+
+      [email],
+
+      (err, rows) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res.status(500).json({
+
+            success: false,
+
+            message: "Server error",
+
+          });
+
+        }
+
+        if (!rows.length) {
+
+          return res.status(404).json({
+
+            success: false,
+
+            message: "Email không tồn tại.",
+
+          });
+
+        }
+
+        const user =
+          rows[0];
+
+        if (
+
+          !user.reset_otp
+
+        ) {
+
+          return res.status(400).json({
+
+            success: false,
+
+            message:
+              "Bạn chưa yêu cầu OTP.",
+
+          });
+
+        }
+
+        if (
+
+          user.reset_otp !== otp
+
+        ) {
+
+          return res.status(400).json({
+
+            success: false,
+
+            message:
+              "OTP không chính xác.",
+
+          });
+
+        }
+
+        if (
+
+          new Date() >
+
+          new Date(
+            user.otp_expired_at
+          )
+
+        ) {
+
+          return res.status(400).json({
+
+            success: false,
+
+            message:
+              "OTP đã hết hạn.",
+
+          });
+
+        }
+
+        return res.json({
+
+          success: true,
+
+          message:
+            "OTP hợp lệ.",
+
+        });
+
+      }
+
+    );
+
+  }
+
+);
+
+// =============================
+// RESET PASSWORD
+// =============================
+
+router.post(
+  "/reset-password",
+  (req, res) => {
+
+    const {
+
+      email,
+
+      otp,
+
+      newPassword,
+
+    } = req.body;
+
+    if (
+
+      !email ||
+
+      !otp ||
+
+      !newPassword
+
+    ) {
+
+      return res.status(400).json({
+
+        success: false,
+
+        message:
+          "Thiếu dữ liệu."
+
+      });
+
+    }
+
+    db.query(
+
+      `
+      SELECT
+        reset_otp,
+        otp_expired_at
+      FROM users
+      WHERE email = ?
+      `,
+
+      [email],
+
+      (err, rows) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res.status(500).json({
+
+            success:false,
+
+            message:"Server error"
+
+          });
+
+        }
+
+        if (!rows.length) {
+
+          return res.status(404).json({
+
+            success:false,
+
+            message:"Email không tồn tại."
+
+          });
+
+        }
+
+        const user =
+          rows[0];
+
+        if (
+
+          user.reset_otp !== otp
+
+        ) {
+
+          return res.status(400).json({
+
+            success:false,
+
+            message:"OTP không đúng."
+
+          });
+
+        }
+
+        if (
+
+          new Date() >
+
+          new Date(
+            user.otp_expired_at
+          )
+
+        ) {
+
+          return res.status(400).json({
+
+            success:false,
+
+            message:"OTP đã hết hạn."
+
+          });
+
+        }
+
+        db.query(
+
+          `
+          UPDATE users
+          SET
+
+            password = ?,
+
+            reset_otp = NULL,
+
+            otp_expired_at = NULL
+
+          WHERE email = ?
+          `,
+
+          [
+
+            newPassword,
+
+            email
+
+          ],
+
+          (updateErr) => {
+
+            if (updateErr) {
+
+              console.log(updateErr);
+
+              return res.status(500).json({
+
+                success:false,
+
+                message:
+                  "Không thể cập nhật mật khẩu."
+
+              });
+
+            }
+
+            return res.json({
+
+              success:true,
+
+              message:
+                "Đổi mật khẩu thành công."
+
+            });
+
+          }
+
+        );
+
+      }
+
+    );
+
+  }
+
+);
 module.exports = router;

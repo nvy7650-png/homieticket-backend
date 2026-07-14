@@ -91,7 +91,96 @@ async function sendTicketMail(
 
 }
 
+async function sendOTP(
+  email,
+  otp
+) {
+
+  await transporter.sendMail({
+
+    from: {
+      name: "HOMIETICKET",
+      address:
+        "violet200204@gmail.com",
+    },
+
+    to: email,
+
+    subject:
+      "Mã xác thực đặt lại mật khẩu",
+
+    html: `
+      <div
+        style="
+          font-family:Arial;
+          max-width:600px;
+          margin:auto;
+        "
+      >
+
+        <h2
+          style="
+            color:#0ea5e9;
+          "
+        >
+
+          HOMIETICKET
+
+        </h2>
+
+        <p>
+
+          Bạn vừa yêu cầu
+          đặt lại mật khẩu.
+
+        </p>
+
+        <p>
+
+          Mã OTP của bạn là:
+
+        </p>
+
+        <h1
+          style="
+            letter-spacing:8px;
+            color:#2563eb;
+          "
+        >
+
+          ${otp}
+
+        </h1>
+
+        <p>
+
+          OTP có hiệu lực
+          trong
+          <b>5 phút</b>.
+
+        </p>
+
+        <p>
+
+          Nếu bạn không
+          thực hiện yêu cầu này,
+          hãy bỏ qua email.
+
+        </p>
+
+      </div>
+    `,
+
+  });
+
+}
+
 module.exports = {
+
   sendTestMail,
+
   sendTicketMail,
+
+  sendOTP,
+
 };
