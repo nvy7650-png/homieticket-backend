@@ -176,15 +176,16 @@ function createTicket(order, ticketData) {
 router.post(
   "/create",
   (req, res) => {
-    console.log(typeof amount);
-console.log(amount);
-console.log(Number(amount));
-
+   
     const orderId =
       req.body.orderId;
 
     const amount =
       req.body.amount;
+       console.log(typeof amount);
+console.log(amount);
+console.log(Number(amount));
+
 
     if (
       !orderId ||
