@@ -201,6 +201,16 @@ console.log(Number(amount));
 
     }
 
+    const ipAddr =
+  (
+    req.headers["x-forwarded-for"] ||
+    req.socket.remoteAddress ||
+    req.ip ||
+    "127.0.0.1"
+  )
+    .split(",")[0]
+    .trim();
+
     const vnpParams =
       sortObject({
         vnp_Version: "2.1.0",
@@ -213,10 +223,8 @@ console.log(Number(amount));
         vnp_OrderType: "other",
         vnp_Amount: Number(amount) * 100,
         vnp_ReturnUrl: process.env.VNP_RETURN_URL,
-        vnp_IpAddr:
-          req.headers["x-forwarded-for"] ||
-          req.socket.remoteAddress ||
-          "127.0.0.1",
+       vnp_IpAddr:
+      ipAddr,
         vnp_CreateDate: moment().format("YYYYMMDDHHmmss"),
       });
 
