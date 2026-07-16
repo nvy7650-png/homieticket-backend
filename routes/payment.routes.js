@@ -1,765 +1,872 @@
-const express = require("express");
-const router = express.Router();
+const express =
+  require("express");
 
-const crypto = require("crypto");
-const qs = require("qs");
-const moment = require("moment");
+const crypto =
+  require("crypto");
 
-const {
-  sendTicketMail,
-} = require("../services/mail.service");
+const qs =
+  require("qs");
 
-function sortObject(obj) {
-  let sorted = {};
-  let str = [];
-  let key;
+const moment =
+  require("moment");
 
-  for (key in obj) {
-    if (obj.hasOwnProperty(key)) {
-      str.push(
-        encodeURIComponent(key)
-      );
-    }
-  }
+const db =
+  require("../db");
 
-  str.sort();
+const mailService =
+  require("../services/mail.service");
 
-  for (key = 0; key < str.length; key++) {
-    sorted[
-      str[key]
-    ] = encodeURIComponent(
-      obj[
-        str[key]
-      ]
-    ).replace(
-      /%20/g,
-      "+"
+const sendTicketMail =
+  mailService.sendTicketMail;
+
+const router =
+  express.Router();
+
+function sortObject(object) {
+
+  return Object.keys(object)
+    .sort()
+    .reduce(
+      (sorted, key) => {
+
+        sorted[key] =
+          object[key];
+
+        return sorted;
+
+      },
+      {}
     );
-  }
 
-  return sorted;
 }
 
-router.post(
-  "/create",
-  async (req, res) => {
+function query(sql, params = []) {
 
-    try {
-
-      const {
-        orderId,
-        amount,
-      } = req.body;
-
-      const tmnCode =
-        process.env.VNP_TMNCODE;
-
-      const secretKey =
-        process.env.VNP_HASHSECRET;
-
-      const vnpUrl =
-        process.env.VNP_URL;
-
-        console.log(
-  "API_URL:",
-  process.env.API_URL
-);
-
-      const returnUrl =
-`${process.env.API_URL}/api/payment/vnpay-return`;
-
-      const ipAddr =
-        (
-          req.headers[
-            "x-forwarded-for"
-          ] ||
-          req.socket
-            .remoteAddress ||
-          "127.0.0.1"
-        )
-          .split(",")[0]
-          .trim();
-
-      const createDate =
-  moment().format(
-    "YYYYMMDDHHmmss"
-  );
-
-      let vnp_Params = {};
-
-      vnp_Params[
-        "vnp_Version"
-      ] = "2.1.0";
-
-      vnp_Params[
-        "vnp_Command"
-      ] = "pay";
-
-      vnp_Params[
-        "vnp_TmnCode"
-      ] = tmnCode;
-
-      vnp_Params[
-        "vnp_Locale"
-      ] = "vn";
-
-      vnp_Params[
-        "vnp_CurrCode"
-      ] = "VND";
-
-      vnp_Params[
-        "vnp_TxnRef"
-      ] =
-        String(orderId);
-
-      vnp_Params[
-        "vnp_OrderInfo"
-      ] =
-        `Thanh toan don hang ${orderId}`;
-
-      vnp_Params[
-        "vnp_OrderType"
-      ] = "other";
-
-      vnp_Params[
-        "vnp_Amount"
-      ] =
-        Number(amount) *
-        100;
-
-      vnp_Params[
-        "vnp_ReturnUrl"
-      ] = returnUrl;
-
-      vnp_Params[
-        "vnp_IpAddr"
-      ] = ipAddr;
-
-      vnp_Params[
-        "vnp_CreateDate"
-      ] = createDate;
-
-      vnp_Params =
-        sortObject(
-          vnp_Params
-        );
-
-      const signData =
-        qs.stringify(
-          vnp_Params,
-          {
-            encode: false,
-          }
-        );
-
-      const secureHash =
-        crypto
-          .createHmac(
-            "sha512",
-            secretKey
-          )
-          .update(
-            Buffer.from(
-              signData,
-              "utf-8"
-            )
-          )
-          .digest(
-            "hex"
-          );
-
-      vnp_Params[
-        "vnp_SecureHash"
-      ] =
-        secureHash;
-
-      const paymentUrl =
-        vnpUrl +
-        "?" +
-        qs.stringify(
-          vnp_Params,
-          {
-            encode: false,
-          }
-        );
-
-      console.log(
-        "===================="
-      );
-
-      console.log(
-        "SIGN DATA:"
-      );
-
-      console.log(
-        signData
-      );
-
-      console.log(
-        "SECURE HASH:"
-      );
-
-      console.log(
-        secureHash
-      );
-
-      console.log(
-        "PAYMENT URL:"
-      );
-
-      console.log(
-        paymentUrl
-      );
-
-      return res.json({
-        paymentUrl,
-      });
-
-    } catch (err) {
-
-      console.log(err);
-
-      return res
-        .status(500)
-        .json({
-          message:
-            "Server error",
-        });
-
-    }
-
-  }
-);
-
-const db = require("../db");
-
-router.get(
-  "/vnpay-return",
-  (req, res) => {
-
-    try {
-
-      const orderId =
-        req.query.vnp_TxnRef;
-
-      const responseCode =
-        req.query.vnp_ResponseCode;
-
-      console.log(
-        "========== VNPAY RETURN =========="
-      );
-
-      console.log(
-        "ORDER:",
-        orderId
-      );
-
-      console.log(
-        "RESPONSE:",
-        responseCode
-      );
-
-      if (
-        responseCode !== "00"
-      ) {
-
-        return res.redirect(
-          `https://homieticket.vercel.app/payment-success?vnp_ResponseCode=${responseCode}`
-        );
-
-      }
-
-      const updateOrderSql = `
-        UPDATE orders
-        SET status = 'PAID'
-        WHERE id = ?
-      `;
+  return new Promise(
+    (resolve, reject) => {
 
       db.query(
-        updateOrderSql,
-        [orderId],
-        (err) => {
 
-          if (err) {
+        sql,
 
-            console.log(err);
+        params,
 
-            return res.status(500).send(
-              "DB Error"
-            );
+        (error, results) => {
+
+          if (
+            error
+          ) {
+
+            reject(error);
+
+            return;
 
           }
 
-          const paymentSql = `
-  INSERT INTO payments
-  (
-    order_id,
-    payment_method,
-    amount,
-    transaction_code,
-    status,
-    paid_at
-  )
-  SELECT
-    id,
-    'VNPAY',
-    total_price,
-    ?,
-    'SUCCESS',
-    NOW()
-  FROM orders
-  WHERE id = ?
-`;
+          resolve(results);
 
-          db.query(
-            paymentSql,
-            [
-              req.query.vnp_TransactionNo ||
-                `VNP-${orderId}`,
-              orderId,
-            ],
-            (paymentErr) => {
+        }
 
-              if (paymentErr) {
-                console.log(paymentErr);
-                return res
-                  .status(500)
-                  .send("Payment Error");
-              }
+      );
 
-              const orderSql = `
-  SELECT
+    }
+  );
 
-    o.*,
+}
 
-    u.name,
+function beginTransaction() {
 
-    u.email
+  return new Promise(
+    (resolve, reject) => {
 
-  FROM orders o
+      db.beginTransaction(
+        (error) => {
 
-  JOIN users u
-    ON u.id = o.user_id
+          if (
+            error
+          ) {
 
-  WHERE o.id = ?
-`;
+            reject(error);
 
-              db.query(
-                orderSql,
-                [orderId],
-                (orderErr, orderRows) => {
+            return;
 
-                  if (
-                    orderErr ||
-                    !orderRows.length
-                  ) {
+          }
 
-                    console.log(
-                      orderErr
-                    );
-
-                    return res
-                      .status(500)
-                      .send(
-                        "Order Error"
-                      );
-
-                  }
-
-                  const order =
-                    orderRows[0];
-
-                  console.log(
-                    "EMAIL:",
-                    order.email
-                  );
-
-                  const itemsSql = `
-      SELECT *
-      FROM order_items
-      WHERE order_id = ?
-    `;
-
-                  db.query(
-                    itemsSql,
-                    [orderId],
-                    (
-                      itemErr,
-                      items
-                    ) => {
-
-                      if (itemErr) {
-
-                        console.log(
-                          itemErr
-                        );
-
-                        return res
-                          .status(500)
-                          .send(
-                            "Items Error"
-                          );
-
-                      }
-
-                      console.log(
-                        "ORDER ITEMS:",
-                        items.length
-                      );
-
-                      let idx = 0;
-                      const createdTickets = [];
-
-                      function processNextItem() {
-
-                        if (idx >= items.length) {
-                          sendTicketMail(
-                            order.email,
-                            orderId,
-                            createdTickets
-                          )
-                            .then(() => {
-                              console.log(
-                                "EMAIL SENT"
-                              );
-                            })
-                            .catch((err) => {
-                              console.log(
-                                "EMAIL ERROR:",
-                                err
-                              );
-                            });
-
-                          const deleteHoldSql = `
-  DELETE FROM ticket_holds
-  WHERE user_id = ?
-  AND event_id = ?
-  AND showtime_id IN (
-    SELECT DISTINCT showtime_id
-    FROM order_items
-    WHERE order_id = ?
-  )
-`;
-
-                          return db.query(
-                            deleteHoldSql,
-                            [
-                              order.user_id,
-                              order.event_id,
-                              orderId,
-                            ],
-                            (holdErr) => {
-
-                              if (holdErr) {
-
-                                console.log(
-                                  holdErr
-                                );
-
-                                return res
-                                  .status(500)
-                                  .send(
-                                    "Hold Error"
-                                  );
-
-                              }
-
-                              console.log(
-                                "HOLDS DELETED"
-                              );
-
-                              if (order.promotion_id) {
-
-                                db.query(
-                                  `
-    UPDATE promotions
-    SET used_count =
-      used_count + 1
-    WHERE id = ?
-    `,
-                                  [order.promotion_id],
-                                  (promoErr) => {
-
-                                    if (promoErr) {
-                                      console.log(
-                                        promoErr
-                                      );
-                                    }
-
-                                  }
-                                );
-
-                              }
-
-                              return res.redirect(
-                                `https://homieticket.vercel.app/payment-success?vnp_ResponseCode=00&vnp_TxnRef=${orderId}`
-                              );
-
-                            }
-                          );
-                        }
-
-                        const item =
-                          items[idx++];
-
-                        const isAuto =
-                          !item.seat_id;
-
-                        if (isAuto) {
-
-                          const findSeatSql = `
-    SELECT seat_id
-    FROM showtime_seats
-    WHERE showtime_id = ?
-    AND zone_id = ?
-    AND status = 'AVAILABLE'
-    LIMIT ?
-  `;
-
-                          return db.query(
-                            findSeatSql,
-                            [
-                              item.showtime_id,
-                              item.zone_id,
-                              item.quantity,
-                            ],
-                            (seatErr, seatRows) => {
-
-                              if (
-                                seatRows.length <
-                                item.quantity
-                              ) {
-
-                                return res
-                                  .status(400)
-                                  .send(
-                                    "Không đủ ghế"
-                                  );
-
-                              }
-
-                              if (seatErr) {
-
-                                console.log(seatErr);
-
-                                return res
-                                  .status(500)
-                                  .send("Seat Error");
-
-                              }
-
-                              let autoIdx = 0;
-
-                              function assignSeat() {
-
-                                if (
-                                  autoIdx >= seatRows.length
-                                ) {
-
-                                  return processNextItem();
-
-                                }
-
-                                const seatId =
-                                  seatRows[
-                                    autoIdx++
-                                  ].seat_id;
-
-                                const soldSql = `
-          UPDATE showtime_seats
-          SET status = 'SOLD'
-          WHERE showtime_id = ?
-          AND seat_id = ?
-        `;
-
-                                db.query(
-                                  soldSql,
-                                  [
-                                    item.showtime_id,
-                                    seatId,
-                                  ],
-                                  () => {
-
-                                    const ticketCode =
-                                      `HMT-${orderId}-${seatId}-${Date.now()}`;
-
-                                    const insertTicketSql = `
-              INSERT INTO tickets
-              (
-                order_item_id,
-                event_id,
-                showtime_id,
-                user_id,
-                zone_id,
-                seat_id,
-                ticket_code,
-                status
-              )
-              VALUES
-              (
-                ?, ?, ?, ?, ?, ?, ?, 'VALID'
-              )
-            `;
-
-                                    db.query(
-                                      insertTicketSql,
-                                      [
-                                        item.id,
-                                        order.event_id,
-                                        item.showtime_id,
-                                        order.user_id,
-                                        item.zone_id,
-                                        seatId,
-                                        ticketCode,
-                                      ],
-                                      () => {
-
-                                        createdTickets.push({
-                                          ticket_code:
-                                            ticketCode,
-
-                                          seat_id:
-                                            seatId,
-                                        });
-                                        assignSeat();
-
-                                      }
-                                    );
-
-                                  }
-                                );
-
-                              }
-
-                              assignSeat();
-
-                            }
-                          );
-
-                        }
-
-                        const soldSql = `     UPDATE showtime_seats
-    SET status = 'SOLD'
-    WHERE showtime_id = ?
-    AND seat_id = ?
-  `;
-
-                        db.query(
-                          soldSql,
-                          [
-                            item.showtime_id,
-                            item.seat_id,
-                          ],
-                          (soldErr) => {
-
-                            if (soldErr) {
-
-                              console.log(
-                                soldErr
-                              );
-
-                              return res
-                                .status(500)
-                                .send(
-                                  "Sold Error"
-                                );
-
-                            }
-
-                            const ticketCode =
-                              `HMT-${orderId}-${item.seat_id}-${Date.now()}`;
-
-                            const insertTicketSql = `
-    INSERT INTO tickets
-    (
-      order_item_id,
-      event_id,
-      showtime_id,
-      user_id,
-      zone_id,
-      seat_id,
-      ticket_code,
-      status
-    )
-    VALUES
-    (
-      ?, ?, ?, ?, ?, ?, ?, 'VALID'
-    )
-  `;
-
-                            db.query(
-                              insertTicketSql,
-                              [
-                                item.id,
-                                order.event_id,
-                                item.showtime_id,
-                                order.user_id,
-                                item.zone_id,
-                                item.seat_id,
-                                ticketCode,
-                              ],
-                              (ticketErr) => {
-
-                                if (ticketErr) {
-
-                                  console.log(
-                                    ticketErr
-                                  );
-
-                                  return res
-                                    .status(500)
-                                    .send(
-                                      "Ticket Error"
-                                    );
-
-                                }
-
-                                console.log(
-                                  "TICKET CREATED:",
-                                  ticketCode
-                                );
-
-                                createdTickets.push({
-                                  ticket_code: ticketCode,
-                                });
-
-                                processNextItem();
-
-                              }
-                            );
-
-                          }
-                        );
-
-                      }
-
-                      processNextItem();
-
-                    }
-                  );
-
-                }
-              );
-
-            }
-          );
+          resolve();
 
         }
       );
 
-    } catch (err) {
+    }
+  );
 
-      console.log(err);
+}
+
+function commit() {
+
+  return new Promise(
+    (resolve, reject) => {
+
+      db.commit(
+        (error) => {
+
+          if (
+            error
+          ) {
+
+            reject(error);
+
+            return;
+
+          }
+
+          resolve();
+
+        }
+      );
+
+    }
+  );
+
+}
+
+function rollback() {
+
+  return new Promise(
+    (resolve) => {
+
+      db.rollback(resolve);
+
+    }
+  );
+
+}
+
+function createTicket(order, ticketData) {
+
+  return query(
+    `
+      INSERT INTO tickets (
+        order_id,
+        user_id,
+        event_id,
+        showtime_id,
+        seat_id,
+        standing_number,
+        ticket_code,
+        qr_code,
+        status
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+    `,
+    [
+      order.id,
+      order.user_id,
+      order.event_id,
+      order.showtime_id,
+      ticketData.seatId || null,
+      ticketData.standingNumber || null,
+      crypto.randomUUID(),
+      crypto.randomUUID(),
+    ]
+  );
+
+}
+
+router.post(
+  "/create",
+  (req, res) => {
+
+    const orderId =
+      req.body.orderId;
+
+    const amount =
+      req.body.amount;
+
+    if (
+      !orderId ||
+      !amount
+    ) {
+
+      return res
+        .status(400)
+        .json({
+          message:
+            "Thiếu dữ liệu",
+        });
+
+    }
+
+    const vnpParams =
+      sortObject({
+        vnp_Version: "2.1.0",
+        vnp_Command: "pay",
+        vnp_TmnCode: process.env.VNP_TMNCODE,
+        vnp_Locale: "vn",
+        vnp_CurrCode: "VND",
+        vnp_TxnRef: String(orderId),
+        vnp_OrderInfo: `Thanh toan don ${orderId}`,
+        vnp_OrderType: "other",
+        vnp_Amount: Number(amount) * 100,
+        vnp_ReturnUrl: process.env.VNP_RETURN_URL,
+        vnp_IpAddr:
+          req.headers["x-forwarded-for"] ||
+          req.socket.remoteAddress ||
+          "127.0.0.1",
+        vnp_CreateDate: moment().format("YYYYMMDDHHmmss"),
+      });
+
+    const signData =
+      qs.stringify(
+        vnpParams,
+        {
+          encode: false,
+        }
+      );
+
+    const secureHash =
+      crypto
+        .createHmac(
+          "sha512",
+          process.env.VNP_HASHSECRET
+        )
+        .update(
+          Buffer.from(
+            signData,
+            "utf-8"
+          )
+        )
+        .digest("hex");
+
+    const paymentParams =
+      Object.assign(
+        {},
+        vnpParams
+      );
+
+    paymentParams.vnp_SecureHash =
+      secureHash;
+
+    const paymentUrl =
+      `${process.env.VNP_URL}?${qs.stringify(
+        paymentParams,
+        {
+          encode: false,
+        }
+      )}`;
+
+    return res.json({
+      paymentUrl,
+    });
+
+  }
+);
+
+router.get(
+  "/vnpay-return",
+  async (req, res) => {
+
+    const vnpParams =
+      Object.assign(
+        {},
+        req.query
+      );
+
+    const secureHash =
+      vnpParams.vnp_SecureHash;
+
+    delete vnpParams.vnp_SecureHash;
+
+    delete vnpParams.vnp_SecureHashType;
+
+    const signData =
+      qs.stringify(
+        sortObject(vnpParams),
+        {
+          encode: false,
+        }
+      );
+
+    const signed =
+      crypto
+        .createHmac(
+          "sha512",
+          process.env.VNP_HASHSECRET
+        )
+        .update(
+          Buffer.from(
+            signData,
+            "utf-8"
+          )
+        )
+        .digest("hex");
+
+    if (
+      secureHash !== signed
+    ) {
+
+      return res
+        .status(400)
+        .send("Sai chữ ký VNPay");
+
+    }
+
+    if (
+      req.query.vnp_ResponseCode !== "00"
+    ) {
+
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/payment-failed`
+      );
+
+    }
+
+    const orderId =
+      Number(req.query.vnp_TxnRef);
+
+    if (
+      !Number.isInteger(orderId) ||
+      orderId <= 0
+    ) {
+
+      return res
+        .status(400)
+        .send("Order not found");
+
+    }
+
+    try {
+
+      await beginTransaction();
+
+      const order =
+        await loadOrder(orderId);
+
+      if (
+        order.status !== "PENDING"
+      ) {
+
+        await rollback();
+
+        return res
+          .status(400)
+          .send("Order is not pending");
+
+      }
+
+      const paymentRows =
+        await query(
+          `
+            SELECT id
+            FROM payments
+            WHERE order_id = ?
+              AND status = 'SUCCESS'
+          `,
+          [order.id]
+        );
+
+      if (
+        paymentRows.length
+      ) {
+
+        await rollback();
+
+        return res
+          .status(400)
+          .send("Payment already processed");
+
+      }
+
+      const event =
+        await loadEvent(order.event_id);
+
+      const items =
+        await loadOrderItems(order.id);
+
+      if (
+        !event
+      ) {
+
+        throw new Error("Event not found");
+
+      }
+
+      if (
+        !items.length
+      ) {
+
+        throw new Error("Order does not contain any items");
+
+      }
+
+      const userRows =
+        await query(
+          `
+            SELECT email
+            FROM users
+            WHERE id = ?
+          `,
+          [order.user_id]
+        );
+
+      if (
+        !userRows.length
+      ) {
+
+        throw new Error("User not found");
+
+      }
+
+      const userEmail =
+        userRows[0].email;
+
+      const context = {
+        order,
+        event,
+        items,
+        itemIndex: 0,
+      };
+
+      await processNextItem(context);
+
+      const ticketRows =
+        await finishPayment(
+          context,
+          req.query.vnp_TransactionNo
+        );
+
+      await commit();
+
+      try {
+
+        await sendTicketMail(
+          userEmail,
+          order.id,
+          ticketRows
+        );
+
+      } catch (error) {
+
+        console.error(
+          "Unable to send ticket email:",
+          error
+        );
+
+      }
+
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/payment-success?orderId=${order.id}`
+      );
+
+    } catch (error) {
+
+      await rollback();
+
+      console.error(
+        "VNPay payment processing error:",
+        error
+      );
 
       return res
         .status(500)
         .send(
-          "Server Error"
+          error.message ||
+          "Payment processing error"
         );
 
     }
 
   }
 );
+
+async function loadOrder(orderId) {
+
+  const rows =
+    await query(
+      "SELECT * FROM orders WHERE id = ? FOR UPDATE",
+      [orderId]
+    );
+
+  if (
+    !rows.length
+  ) {
+
+    throw new Error("Order not found");
+
+  }
+
+  return rows[0];
+
+}
+
+async function loadEvent(eventId) {
+
+  const rows =
+    await query(
+      "SELECT * FROM events WHERE id = ?",
+      [eventId]
+    );
+
+  return rows[0] || null;
+
+}
+
+function loadOrderItems(orderId) {
+
+  return query(
+    `
+      SELECT
+        oi.*,
+        z.id AS zone_id,
+        z.name AS zone_name,
+        z.zone_type
+      FROM order_items oi
+      JOIN zones z ON z.id = oi.zone_id
+      WHERE oi.order_id = ?
+      ORDER BY oi.id ASC
+    `,
+    [orderId]
+  );
+
+}
+
+async function processNextItem(context) {
+
+  if (
+    context.itemIndex >= context.items.length
+  ) {
+
+    return;
+
+  }
+
+  const item =
+    context.items[context.itemIndex];
+
+  context.itemIndex += 1;
+
+  if (
+    context.event.seat_mode === "MANUAL"
+  ) {
+
+    await processManual(
+      context.order,
+      item
+    );
+
+  } else {
+
+    await processAuto(
+      context.order,
+      item
+    );
+
+  }
+
+  await processNextItem(context);
+
+}
+
+async function processManual(order, item) {
+
+  if (
+    !item.seat_id
+  ) {
+
+    throw new Error("Manual order item does not have a seat");
+
+  }
+
+  const result =
+    await query(
+      `
+        UPDATE showtime_seats
+        SET status = 'SOLD'
+        WHERE showtime_id = ? AND seat_id = ? AND status = 'HELD'
+      `,
+      [
+        order.showtime_id,
+        item.seat_id,
+      ]
+    );
+
+  if (
+    result.affectedRows !== 1
+  ) {
+
+    throw new Error("Ghế đã được đặt hoặc không tồn tại");
+
+  }
+
+  await createTicket(
+    order,
+    {
+      seatId: item.seat_id,
+    }
+  );
+
+}
+
+async function processAuto(order, item) {
+
+  if (
+    item.zone_type === "SEATING"
+  ) {
+
+    await processAutoSeating(
+      order,
+      item
+    );
+
+    return;
+
+  }
+
+  if (
+    item.zone_type === "STANDING"
+  ) {
+
+    await processStanding(
+      order,
+      item
+    );
+
+    return;
+
+  }
+
+  throw new Error("Invalid zone type");
+
+}
+
+async function processAutoSeating(order, item) {
+
+  const quantity =
+    Number(item.quantity);
+
+  if (
+    !Number.isInteger(quantity) ||
+    quantity <= 0
+  ) {
+
+    throw new Error("Invalid ticket quantity");
+
+  }
+
+  const seats =
+    await query(
+      `
+        SELECT ss.id, ss.seat_id
+        FROM showtime_seats ss
+        JOIN seats s ON s.id = ss.seat_id
+        WHERE ss.showtime_id = ?
+          AND ss.zone_id = ?
+          AND ss.status = 'AVAILABLE'
+        ORDER BY s.row_label ASC, s.seat_number ASC
+        LIMIT ?
+        FOR UPDATE
+      `,
+      [
+        order.showtime_id,
+        item.zone_id,
+        quantity,
+      ]
+    );
+
+  if (
+    seats.length < quantity
+  ) {
+
+    throw new Error("Không đủ ghế");
+
+  }
+
+  for (
+    const seat of seats
+  ) {
+
+    const result =
+      await query(
+        "UPDATE showtime_seats SET status = 'SOLD' WHERE id = ? AND status = 'AVAILABLE'",
+        [seat.id]
+      );
+
+    if (
+      result.affectedRows !== 1
+    ) {
+
+      throw new Error("Ghế đã được đặt hoặc không tồn tại");
+
+    }
+
+    await createTicket(
+      order,
+      {
+        seatId: seat.seat_id,
+      }
+    );
+
+  }
+
+}
+
+async function processStanding(order, item) {
+
+  const quantity =
+    Number(item.quantity);
+
+  if (
+    !Number.isInteger(quantity) ||
+    quantity <= 0
+  ) {
+
+    throw new Error("Invalid ticket quantity");
+
+  }
+
+  const inventoryRows =
+    await query(
+      `
+        SELECT id, capacity, sold_count
+        FROM showtime_standing_inventory
+        WHERE showtime_id = ? AND zone_id = ?
+        FOR UPDATE
+      `,
+      [
+        order.showtime_id,
+        item.zone_id,
+      ]
+    );
+
+  if (
+    !inventoryRows.length
+  ) {
+
+    throw new Error("Không tìm thấy Standing");
+
+  }
+
+  const inventory =
+    inventoryRows[0];
+
+  const available =
+    Number(inventory.capacity) -
+    Number(inventory.sold_count);
+
+  if (
+    available < quantity
+  ) {
+
+    throw new Error("Không đủ vé Standing");
+
+  }
+
+  for (
+    let index = 1;
+    index <= quantity;
+    index += 1
+  ) {
+
+    const standingNumber =
+      `${item.zone_name}-${String(
+        Number(inventory.sold_count) + index
+      ).padStart(6, "0")}`;
+
+    await createTicket(
+      order,
+      {
+        standingNumber,
+      }
+    );
+
+  }
+
+  await query(
+    `
+      UPDATE showtime_standing_inventory
+      SET sold_count = sold_count + ?
+      WHERE id = ?
+    `,
+    [
+      quantity,
+      inventory.id,
+    ]
+  );
+
+}
+
+async function finishPayment(context, transactionCode) {
+
+  const order =
+    context.order;
+
+  await query(
+    "UPDATE orders SET status = 'PAID' WHERE id = ?",
+    [order.id]
+  );
+
+  if (
+    context.event.seat_mode === "MANUAL"
+  ) {
+
+    await query(
+      `
+        DELETE FROM ticket_holds
+        WHERE order_id = ?
+      `,
+      [order.id]
+    );
+
+  }
+
+  await query(
+    `
+      INSERT INTO payments (
+        order_id,
+        amount,
+        payment_method,
+        transaction_code,
+        status
+      )
+      VALUES (?, ?, 'VNPAY', ?, 'SUCCESS')
+    `,
+    [
+      order.id,
+      order.total_amount,
+      transactionCode,
+    ]
+  );
+
+  if (
+    order.promotion_id
+  ) {
+
+    await query(
+      `
+        UPDATE promotions
+        SET
+          used_count = used_count + 1,
+          status = CASE
+            WHEN used_count + 1 >= quantity THEN 'INACTIVE'
+            ELSE status
+          END
+        WHERE id = ?
+      `,
+      [order.promotion_id]
+    );
+
+  }
+
+  return query(
+    `
+      SELECT ticket_code, standing_number, seat_id
+      FROM tickets
+      WHERE order_id = ?
+      ORDER BY id ASC
+    `,
+    [order.id]
+  );
+
+}
 
 module.exports = router;
