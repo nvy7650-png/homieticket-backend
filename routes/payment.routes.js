@@ -259,6 +259,11 @@ console.log(Number(amount));
         }
       )}`;
 
+      console.log("========== VNP PARAMS ==========");
+console.log(vnpParams);
+console.log("========== PAYMENT URL ==========");
+console.log(paymentUrl);
+console.log("===============================");
     return res.json({
       paymentUrl,
     });
