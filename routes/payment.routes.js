@@ -774,6 +774,11 @@ async function processAutoSeating(order, item) {
 }
 
 async function processStanding(order, item) {
+  console.log("========== PROCESS STANDING ==========");
+console.log("order.showtime_id =", order.showtime_id);
+console.log("item =", item);
+console.log("item.zone_id =", item.zone_id);
+console.log("item.zone_name =", item.zone_name);
 
   const quantity =
     Number(item.quantity);
@@ -800,6 +805,7 @@ async function processStanding(order, item) {
         item.zone_id,
       ]
     );
+    console.log("inventoryRows =", inventoryRows);
 
   if (
     !inventoryRows.length
@@ -855,6 +861,7 @@ async function processStanding(order, item) {
       inventory.id,
     ]
   );
+  
 
 }
 
