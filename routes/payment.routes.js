@@ -149,28 +149,28 @@ function createTicket(order, ticketData) {
 
   return query(
     `
-      INSERT INTO tickets (
-        order_id,
-        user_id,
-        event_id,
-        showtime_id,
-        seat_id,
-        standing_number,
-        ticket_code,
-        qr_code,
-        status
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE')
+    INSERT INTO tickets (
+      order_item_id,
+      event_id,
+      showtime_id,
+      user_id,
+      zone_id,
+      seat_id,
+      ticket_code,
+      status,
+      standing_number
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'VALID', ?)
     `,
     [
-      order.id,
-      order.user_id,
+      ticketData.orderItemId,
       order.event_id,
       order.showtime_id,
+      order.user_id,
+      ticketData.zoneId,
       ticketData.seatId || null,
+      crypto.randomUUID(),
       ticketData.standingNumber || null,
-      crypto.randomUUID(),
-      crypto.randomUUID(),
     ]
   );
 
@@ -661,12 +661,11 @@ async function processManual(order, item) {
 
   }
 
-  await createTicket(
-    order,
-    {
-      seatId: item.seat_id,
-    }
-  );
+  await createTicket(order, {
+  orderItemId: item.id,
+  zoneId: item.zone_id,
+  seatId: item.seat_id,
+});
 
 }
 
@@ -762,12 +761,11 @@ async function processAutoSeating(order, item) {
 
     }
 
-    await createTicket(
-      order,
-      {
-        seatId: seat.seat_id,
-      }
-    );
+    await createTicket(order, {
+  orderItemId: item.id,
+  zoneId: item.zone_id,
+  seatId: seat.seat_id,
+});
 
   }
 
@@ -842,12 +840,11 @@ console.log("inventoryRows =", inventoryRows);
         Number(inventory.sold_count) + index
       ).padStart(6, "0")}`;
 
-    await createTicket(
-      order,
-      {
-        standingNumber,
-      }
-    );
+    await createTicket(order, {
+  orderItemId: item.id,
+  zoneId: item.zone_id,
+  standingNumber,
+});
 
   }
 
@@ -883,9 +880,13 @@ async function finishPayment(context, transactionCode) {
     await query(
       `
         DELETE FROM ticket_holds
-        WHERE order_id = ?
+WHERE user_id = ?
+AND showtime_id = ?
       `,
-      [order.id]
+     [
+  order.user_id,
+  order.showtime_id,
+]
     );
 
   }
@@ -931,11 +932,15 @@ async function finishPayment(context, transactionCode) {
   return query(
     `
       SELECT ticket_code, standing_number, seat_id
-      FROM tickets
-      WHERE order_id = ?
-      ORDER BY id ASC
+FROM tickets
+WHERE user_id = ?
+AND showtime_id = ?
+ORDER BY id ASC
     `,
-    [order.id]
+   [
+  order.user_id,
+  order.showtime_id,
+]
   );
 
 }
