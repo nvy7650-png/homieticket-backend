@@ -176,16 +176,11 @@ function createTicket(order, ticketData) {
 router.post(
   "/create",
   (req, res) => {
-   
-    const orderId =
-      req.body.orderId;
 
-    const amount =
-      req.body.amount;
-       console.log(typeof amount);
-console.log(amount);
-console.log(Number(amount));
-
+    const {
+      orderId,
+      amount,
+    } = req.body;
 
     if (
       !orderId ||
@@ -201,36 +196,68 @@ console.log(Number(amount));
 
     }
 
-    const forwarded =
-  String(
-    req.headers["x-forwarded-for"] || ""
-  );
+    let ipAddr =
+      req.headers["x-forwarded-for"] ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      "127.0.0.1";
 
-const ipAddr =
-  forwarded
-    ? forwarded.split(",")[0].trim()
-    : (
-        req.socket.remoteAddress ||
-        req.ip ||
-        "127.0.0.1"
+    ipAddr =
+      String(ipAddr)
+        .split(",")[0]
+        .trim();
+
+    const createDate =
+      moment().format(
+        "YYYYMMDDHHmmss"
       );
 
-    const vnpParams =
-      sortObject({
-        vnp_Version: "2.1.0",
-        vnp_Command: "pay",
-        vnp_TmnCode: process.env.VNP_TMNCODE,
-        vnp_Locale: "vn",
-        vnp_CurrCode: "VND",
-        vnp_TxnRef: String(orderId),
-        vnp_OrderInfo: `Thanh toan don ${orderId}`,
-        vnp_OrderType: "other",
-        vnp_Amount: Number(amount) * 100,
-        vnp_ReturnUrl: process.env.VNP_RETURN_URL,
-       vnp_IpAddr:
-      ipAddr,
-        vnp_CreateDate: moment().format("YYYYMMDDHHmmss"),
-      });
+    let vnpParams = {
+
+      vnp_Version:
+        "2.1.0",
+
+      vnp_Command:
+        "pay",
+
+      vnp_TmnCode:
+        process.env.VNP_TMNCODE,
+
+      vnp_Locale:
+        "vn",
+
+      vnp_CurrCode:
+        "VND",
+
+      vnp_TxnRef:
+        String(orderId),
+
+      vnp_OrderInfo:
+        `Thanh toan don ${orderId}`,
+
+      vnp_OrderType:
+        "other",
+
+      vnp_Amount:
+        Math.round(
+          Number(amount) * 100
+        ),
+
+      vnp_ReturnUrl:
+        process.env.VNP_RETURN_URL,
+
+      vnp_IpAddr:
+        ipAddr,
+
+      vnp_CreateDate:
+        createDate,
+
+    };
+
+    vnpParams =
+      sortObject(
+        vnpParams
+      );
 
     const signData =
       qs.stringify(
@@ -240,44 +267,47 @@ const ipAddr =
         }
       );
 
-      console.log("SIGN DATA:");
-console.log(signData);
-
-console.log("HASH SECRET:");
-console.log(process.env.VNP_HASHSECRET ? "OK" : "MISSING");
-
     const secureHash =
       crypto
         .createHmac(
           "sha512",
-          process.env.VNP_HASHSECRET
+          process.env
+            .VNP_HASHSECRET
+            .trim()
         )
         .update(
-          Buffer.from(
-            signData,
-            "utf-8"
-          )
+          signData,
+          "utf8"
         )
         .digest("hex");
 
     vnpParams.vnp_SecureHash =
-  secureHash;
+      secureHash;
 
-const paymentUrl =
-  process.env.VNP_URL +
-  "?" +
-  qs.stringify(
-    vnpParams,
-    {
-      encode: false,
-    }
-  );
+    const paymentUrl =
+      process.env.VNP_URL +
+      "?" +
+      qs.stringify(
+        vnpParams,
+        {
+          encode: false,
+        }
+      );
 
-      console.log("========== VNP PARAMS ==========");
-console.log(vnpParams);
-console.log("========== PAYMENT URL ==========");
-console.log(paymentUrl);
-console.log("===============================");
+    console.log(
+      "========== SIGN DATA =========="
+    );
+    console.log(
+      signData
+    );
+
+    console.log(
+      "========== PAYMENT URL =========="
+    );
+    console.log(
+      paymentUrl
+    );
+
     return res.json({
       paymentUrl,
     });
