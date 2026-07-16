@@ -345,18 +345,18 @@ router.get(
       );
 
     const signed =
-      crypto
-        .createHmac(
-          "sha512",
-          process.env.VNP_HASHSECRET
-        )
-        .update(
-          Buffer.from(
-            signData,
-            "utf-8"
-          )
-        )
-        .digest("hex");
+  crypto
+    .createHmac(
+      "sha512",
+      process.env
+        .VNP_HASHSECRET
+        .trim()
+    )
+    .update(
+      signData,
+      "utf8"
+    )
+    .digest("hex");
 
     if (
       secureHash !== signed
