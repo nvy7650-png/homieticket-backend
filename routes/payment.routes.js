@@ -201,15 +201,19 @@ console.log(Number(amount));
 
     }
 
-    const ipAddr =
-  (
-    req.headers["x-forwarded-for"] ||
-    req.socket.remoteAddress ||
-    req.ip ||
-    "127.0.0.1"
-  )
-    .split(",")[0]
-    .trim();
+    const forwarded =
+  String(
+    req.headers["x-forwarded-for"] || ""
+  );
+
+const ipAddr =
+  forwarded
+    ? forwarded.split(",")[0].trim()
+    : (
+        req.socket.remoteAddress ||
+        req.ip ||
+        "127.0.0.1"
+      );
 
     const vnpParams =
       sortObject({
@@ -236,6 +240,12 @@ console.log(Number(amount));
         }
       );
 
+      console.log("SIGN DATA:");
+console.log(signData);
+
+console.log("HASH SECRET:");
+console.log(process.env.VNP_HASHSECRET ? "OK" : "MISSING");
+
     const secureHash =
       crypto
         .createHmac(
@@ -250,22 +260,18 @@ console.log(Number(amount));
         )
         .digest("hex");
 
-    const paymentParams =
-      Object.assign(
-        {},
-        vnpParams
-      );
+    vnpParams.vnp_SecureHash =
+  secureHash;
 
-    paymentParams.vnp_SecureHash =
-      secureHash;
-
-    const paymentUrl =
-      `${process.env.VNP_URL}?${qs.stringify(
-        paymentParams,
-        {
-          encode: false,
-        }
-      )}`;
+const paymentUrl =
+  process.env.VNP_URL +
+  "?" +
+  qs.stringify(
+    vnpParams,
+    {
+      encode: false,
+    }
+  );
 
       console.log("========== VNP PARAMS ==========");
 console.log(vnpParams);
