@@ -774,9 +774,7 @@ async function processAutoSeating(order, item) {
 }
 
 async function processStanding(order, item) {
- console.log("ORDER SHOWTIME:", order.showtime_id);
-console.log("ITEM ZONE:", item.zone_id);
-console.log(inventoryRows);
+
 
   const quantity =
     Number(item.quantity);
@@ -790,20 +788,25 @@ console.log(inventoryRows);
 
   }
 
-  const inventoryRows =
-    await query(
-      `
-        SELECT id, capacity, sold_count
-        FROM showtime_standing_inventory
-        WHERE showtime_id = ? AND zone_id = ?
-        FOR UPDATE
-      `,
-      [
-        order.showtime_id,
-        item.zone_id,
-      ]
-    );
-    console.log("inventoryRows =", inventoryRows);
+
+  console.log("ORDER SHOWTIME:", order.showtime_id);
+console.log("ITEM ZONE:", item.zone_id);
+
+const inventoryRows =
+  await query(
+    `
+    SELECT id, capacity, sold_count
+    FROM showtime_standing_inventory
+    WHERE showtime_id = ? AND zone_id = ?
+    FOR UPDATE
+    `,
+    [
+      order.showtime_id,
+      item.zone_id,
+    ]
+  );
+
+console.log("inventoryRows =", inventoryRows);
 
   if (
     !inventoryRows.length
