@@ -22,24 +22,21 @@ const sendTicketMail =
 const router =
   express.Router();
 
-function sortObject(obj) {
+function sortObject(object) {
 
-  const sorted = {};
+  return Object.keys(object)
+    .sort()
+    .reduce(
+      (sorted, key) => {
 
-  const keys =
-    Object.keys(obj).sort();
+        sorted[key] =
+          object[key];
 
-  for (const key of keys) {
+        return sorted;
 
-    sorted[
-      encodeURIComponent(key)
-    ] =
-      encodeURIComponent(obj[key])
-        .replace(/%20/g, "+");
-
-  }
-
-  return sorted;
+      },
+      {}
+    );
 
 }
 
@@ -258,17 +255,17 @@ router.post(
     };
 
     vnpParams =
-      sortObject(
-        vnpParams
-      );
+  sortObject(
+    vnpParams
+  );
 
-    const signData =
-qs.stringify(
-    sortObject(vnpParams),
+const signData =
+  qs.stringify(
+    vnpParams,
     {
-        encode:false
+      encode: false,
     }
-);
+  );
 
     const secureHash =
       crypto
@@ -288,19 +285,18 @@ qs.stringify(
       secureHash;
 
     const paymentUrl =
-process.env.VNP_URL+
-"?"
-+
-qs.stringify(
-    sortObject({
-        ...vnpParams,
-        vnp_SecureHash:
-            secureHash,
-    }),
+  process.env.VNP_URL +
+  "?" +
+  qs.stringify(
     {
-        encode:false
+      ...vnpParams,
+      vnp_SecureHash:
+        secureHash,
+    },
+    {
+      encode: false,
     }
-);
+  );
 
     console.log(
       "========== SIGN DATA =========="
