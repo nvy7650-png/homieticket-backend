@@ -7,9 +7,10 @@ const db = require("../db");
 // body: { user_id, event_id, items: [{ zone_id, seat_id, quantity, price }] }
 router.post("/", (req, res) => {
 
-  const {
+ const {
   user_id,
   event_id,
+  showtime_id,
   promotion_id,
   items
 } = req.body || {};
@@ -45,9 +46,10 @@ router.post("/", (req, res) => {
 
     const it = seatItems[sIdx++];
     const seat_id = it.seat_id;
-    const showtime_id = it.showtime_id || req.body.showtime_id;
+    const itemShowtimeId =
+  it.showtime_id || showtime_id;
 
-    if (!showtime_id) {
+    if (!itemShowtimeId) {
       return res.status(400).json({ message: 'Missing showtime_id for selected seat' });
     }
 
@@ -61,7 +63,13 @@ router.post("/", (req, res) => {
         AND user_id <> ?
     `;
 
-    db.query(checkHoldSql, [seat_id, showtime_id, user_id], (hErr, hRes) => {
+    db.query(
+    checkHoldSql,
+    [
+        seat_id,
+        itemShowtimeId,
+        user_id
+    ], (hErr, hRes) => {
       if (hErr) {
         console.log(hErr);
         return res.status(500).json({ message: 'Lỗi server' });
@@ -90,27 +98,29 @@ router.post("/", (req, res) => {
 
       const insertOrderSql = `
   INSERT INTO orders
-  (
-    user_id,
-    event_id,
-    promotion_id,
-    total_price,
-    status
-  )
-  VALUES
-  (
-    ?, ?, ?, ?, 'PENDING'
-  )
+(
+  user_id,
+  event_id,
+  showtime_id,
+  promotion_id,
+  total_price,
+  status
+)
+VALUES
+(
+  ?, ?, ?, ?, ?, 'PENDING'
+)
 `;
 
       db.query(
   insertOrderSql,
   [
-    user_id,
-    event_id,
-    promotion_id,
-    total_price,
-  ],
+  user_id,
+  event_id,
+  showtime_id,
+  promotion_id,
+  total_price,
+],
         (err, result) => {
 
           if (err) {
@@ -155,8 +165,9 @@ router.post("/", (req, res) => {
 
             const it = items[idx++];
 
-            const showtime_id =
-  it.showtime_id || null;
+            const itemShowtimeId =
+  it.showtime_id || showtime_id;
+
 
 const zone_id =
   it.zone_id || null;
@@ -184,13 +195,15 @@ const price =
 `;
 
             db.query(
-              insertItemSql,
-              [orderId,
-  showtime_id,
-  zone_id,
-  seat_id,
-  quantity,
-  price],
+  insertItemSql,
+  [
+    orderId,
+    itemShowtimeId,
+    zone_id,
+    seat_id,
+    quantity,
+    price
+  ],
               (itemErr) => {
 
                 if (itemErr) {
