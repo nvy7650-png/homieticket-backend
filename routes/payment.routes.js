@@ -517,8 +517,8 @@ console.log(process.env.VNP_RETURN_URL);
 
       }
 
-      return res.redirect(
-  `https://homieticket.vercel.app/payment-success?orderId=${order.id}`
+     return res.redirect(
+  `https://homieticket.vercel.app/payment-success?vnp_ResponseCode=00&vnp_TxnRef=${order.id}`
 );
 
     } catch (error) {
