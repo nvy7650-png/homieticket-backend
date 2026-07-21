@@ -254,4 +254,44 @@ router.get(
   }
 );
 
+// =============================
+// GET ALL ORDERS
+// =============================
+router.get("/orders", (req, res) => {
+
+  const sql = `
+    SELECT
+      o.id,
+      o.total_price,
+      o.status,
+      o.created_at,
+
+      e.id AS event_id,
+      e.title AS event_title
+
+    FROM orders o
+
+    LEFT JOIN events e
+      ON o.event_id = e.id
+
+    ORDER BY o.created_at DESC
+  `;
+
+  db.query(sql, (err, rows) => {
+
+    if (err) {
+
+      console.log(err);
+
+      return res.status(500).json({
+        message: "Lỗi server",
+      });
+
+    }
+
+    res.json(rows);
+
+  });
+
+});
 module.exports = router;
