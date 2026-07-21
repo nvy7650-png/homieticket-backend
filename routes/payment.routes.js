@@ -518,8 +518,8 @@ console.log(process.env.VNP_RETURN_URL);
       }
 
       return res.redirect(
-        `${process.env.FRONTEND_URL}/payment-success?orderId=${order.id}`
-      );
+  `https://homieticket.vercel.app/payment-success?orderId=${order.id}`
+);
 
     } catch (error) {
 
