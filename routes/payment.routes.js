@@ -891,23 +891,31 @@ AND showtime_id = ?
 
   }
 
-  await query(
-    `
-      INSERT INTO payments (
-        order_id,
-        amount,
-        payment_method,
-        transaction_code,
-        status
-      )
-      VALUES (?, ?, 'VNPAY', ?, 'SUCCESS')
-    `,
-    [
-      order.id,
-      order.total_price,
-      transactionCode,
-    ]
-  );
+ await query(
+  `
+    INSERT INTO payments (
+      order_id,
+      amount,
+      payment_method,
+      transaction_code,
+      status,
+      paid_at
+    )
+    VALUES (
+      ?,
+      ?,
+      'VNPAY',
+      ?,
+      'SUCCESS',
+      NOW()
+    )
+  `,
+  [
+    order.id,
+    order.total_price,
+    transactionCode,
+  ]
+);
 
   if (
     order.promotion_id
