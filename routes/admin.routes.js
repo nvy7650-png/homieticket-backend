@@ -294,4 +294,50 @@ router.get("/orders", (req, res) => {
   });
 
 });
+// =============================
+// GET REVENUE
+// =============================
+router.get("/revenue", (req, res) => {
+
+  const sql = `
+    SELECT
+      p.id,
+      p.order_id,
+      p.payment_method,
+      p.amount,
+      p.status,
+      p.paid_at,
+
+      e.title AS event_title
+
+    FROM payments p
+
+    LEFT JOIN orders o
+      ON p.order_id = o.id
+
+    LEFT JOIN events e
+      ON o.event_id = e.id
+
+    WHERE p.status = 'SUCCESS'
+
+    ORDER BY p.paid_at DESC
+  `;
+
+  db.query(sql, (err, rows) => {
+
+    if (err) {
+
+      console.log(err);
+
+      return res.status(500).json({
+        message: "Lỗi server",
+      });
+
+    }
+
+    res.json(rows);
+
+  });
+
+});
 module.exports = router;
