@@ -55,19 +55,16 @@ AND status = 'ACTIVE'
 AND expires_at > NOW()
 `;
 
-console.log("[HOLD] CHECK RESULT");
-console.log("ERROR:", err);
-console.log("ROWS:", rows);
 
 db.query(
 checkSql,
 [showtime_id, ...seat_ids],
 (err, rows) => {
 
-  console.log("========== HOLD CHECK ==========");
-  console.log("SHOWTIME:", showtime_id);
-  console.log("SEAT_IDS:", seats);
-  console.log("FOUND_ROWS:", rows);
+  console.log("[HOLD] CHECK RESULT");
+console.log("ERROR:", err);
+console.log("ROWS:", rows);
+
 
   if (err) {
     console.log("CHECK ERROR:", err);
