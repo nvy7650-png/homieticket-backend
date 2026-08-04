@@ -151,6 +151,9 @@ console.log(
 console.log("INSERT VALUES:");
 console.log(insertValues);
 
+console.log("BODY:", req.body);
+console.log("SEATS:", seats);
+console.log("INSERT VALUES:", insertValues);
 db.query(
 insertSql,
 [insertValues],
