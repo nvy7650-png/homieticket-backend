@@ -972,4 +972,58 @@ router.post(
 
 );
 
+// ======================================
+// GET PROMOTIONS BY EVENT
+// ======================================
+
+router.get(
+  "/event/:eventId",
+  (req, res) => {
+
+    const eventId =
+      req.params.eventId;
+
+    const sql = `
+      SELECT
+        id,
+        code,
+        name,
+        discount_type,
+        discount_value,
+        min_order_value,
+        max_discount
+      FROM promotions
+      WHERE
+        event_id = ?
+        AND status = 'ACTIVE'
+        AND start_date <= NOW()
+        AND end_date >= NOW()
+        AND used_count < quantity
+      ORDER BY created_at DESC
+    `;
+
+    db.query(
+      sql,
+      [eventId],
+      (err, rows) => {
+
+        if (err) {
+
+          console.log(err);
+
+          return res.status(500).json({
+            success: false,
+            message: "Server error",
+          });
+
+        }
+
+        res.json(rows);
+
+      }
+    );
+
+  }
+);
+
 module.exports = router;

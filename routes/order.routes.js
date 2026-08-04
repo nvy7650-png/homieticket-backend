@@ -2,243 +2,292 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-
 // POST /api/orders
-// body: { user_id, event_id, items: [{ zone_id, seat_id, quantity, price }] }
 router.post("/", (req, res) => {
+  const { user_id, event_id, showtime_id, promotion_id, items } = req.body || {};
 
- const {
-  user_id,
-  event_id,
-  showtime_id,
-  promotion_id,
-  items
-} = req.body || {};
-
-  if (!user_id || !event_id || !Array.isArray(items) || items.length === 0) {
-
-    return res
-      .status(400)
-      .json({ message: "Dữ liệu không hợp lệ" });
-
+  if (!user_id || !event_id || !Array.isArray(items) || !items.length) {
+    return res.status(400).json({ message: "Dữ liệu không hợp lệ" });
   }
 
-  const total_price = items.reduce((sum, it) => {
+  const hasInvalidItem = items.some((item) => {
+    const quantity = Number(item && item.quantity);
+    const price = Number(item && item.price);
+    return !item || !Number.isFinite(quantity) || !Number.isFinite(price) || quantity <= 0 || price < 0;
+  });
 
-    const q = Number(it.quantity || 0);
+  if (hasInvalidItem) {
+    return res.status(400).json({ message: "Dữ liệu không hợp lệ" });
+  }
 
-    const p = Number(it.price || 0);
+  const originalTotal = items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.price), 0);
+  const hasPromotion = promotion_id !== undefined && promotion_id !== null && promotion_id !== "";
+  const seatItems = items.filter((item) => item.seat_id);
+  let promotion = null;
+  let discountAmount = 0;
+  let finalTotal = originalTotal;
 
-    return sum + q * p;
-
-  }, 0);
-
-  // Before creating order: ensure no selected seat is actively held by another user
-  const seatItems = items.filter((it) => it && it.seat_id);
-
-  let sIdx = 0;
-
-  function checkNextSeatHold() {
-    if (sIdx >= seatItems.length) {
-      // all seats passed validation -> proceed to create order
-      return proceedCreateOrder();
-    }
-
-    const it = seatItems[sIdx++];
-    const seat_id = it.seat_id;
-    const itemShowtimeId =
-  it.showtime_id || showtime_id;
-
-    if (!itemShowtimeId) {
-      return res.status(400).json({ message: 'Missing showtime_id for selected seat' });
-    }
-
-    const checkHoldSql = `
-      SELECT *
-      FROM ticket_holds
-      WHERE seat_id = ?
-        AND showtime_id = ?
-        AND status = 'ACTIVE'
-        AND expires_at > NOW()
-        AND user_id <> ?
-    `;
+  function validatePromotion(callback) {
+    if (!hasPromotion) return callback();
 
     db.query(
-    checkHoldSql,
-    [
-        seat_id,
-        itemShowtimeId,
-        user_id
-    ], (hErr, hRes) => {
-      if (hErr) {
-        console.log(hErr);
-        return res.status(500).json({ message: 'Lỗi server' });
+  `
+    SELECT *
+    FROM promotions
+    WHERE id = ?
+    AND (
+      event_id IS NULL
+      OR event_id = ?
+    )
+  `,
+  [
+    promotion_id,
+    event_id,
+  ],
+  (err, rows) => {
+      if (err) {
+        console.log(err);
+        return res.status(500).json({ message: "Lỗi server" });
       }
 
-      if (hRes && hRes.length > 0) {
-        return res.status(409).json({ message: 'Một hoặc nhiều ghế đang được người khác giữ' });
+      if (!rows.length) {
+        return res.status(400).json({ message: "Mã giảm giá không tồn tại" });
       }
 
-      checkNextSeatHold();
+      promotion = rows[0];
+      const now = new Date();
+      const minOrder = Number(promotion.min_order ?? promotion.min_order_value ?? 0);
+
+      if (promotion.status && promotion.status !== "ACTIVE") {
+        return res.status(400).json({ message: "Mã giảm giá không còn hoạt động" });
+      }
+
+      if (promotion.start_date && new Date(promotion.start_date) > now) {
+        return res.status(400).json({ message: "Mã giảm giá chưa bắt đầu" });
+      }
+
+      if (promotion.end_date && new Date(promotion.end_date) < now) {
+        return res.status(400).json({ message: "Mã giảm giá đã hết hạn" });
+      }
+
+      if (promotion.quantity !== null && Number(promotion.used_count || 0) >= Number(promotion.quantity)) {
+        return res.status(400).json({ message: "Mã giảm giá đã hết lượt sử dụng" });
+      }
+
+      if (minOrder > 0 && originalTotal < minOrder) {
+        return res.status(400).json({
+          message: `Đơn hàng phải từ ${minOrder.toLocaleString("vi-VN")}đ để sử dụng mã này`,
+        });
+      }
+
+      if (promotion.discount_type === "PERCENT") {
+        discountAmount = (originalTotal * Number(promotion.discount_value || 0)) / 100;
+      } else if (promotion.discount_type === "FIXED") {
+        discountAmount = Number(promotion.discount_value || 0);
+      } else {
+        return res.status(400).json({ message: "Mã giảm giá không hợp lệ" });
+      }
+
+      if (promotion.max_discount !== null && promotion.max_discount !== undefined && discountAmount > Number(promotion.max_discount)) {
+        discountAmount = Number(promotion.max_discount);
+      }
+
+      discountAmount = Math.max(0, Math.min(discountAmount, originalTotal));
+      finalTotal = originalTotal - discountAmount;
+      callback();
     });
   }
 
-  // proceedCreateOrder will contain the existing transaction logic
+  function checkNextSeatHold(index = 0) {
+    if (index >= seatItems.length) return proceedCreateOrder();
+
+    const item = seatItems[index];
+    const itemShowtimeId = item.showtime_id || showtime_id;
+    if (!itemShowtimeId) {
+      return res.status(400).json({ message: "Missing showtime_id for selected seat" });
+    }
+
+    db.query(
+      `
+        SELECT *
+        FROM ticket_holds
+        WHERE seat_id = ?
+          AND showtime_id = ?
+          AND status = 'ACTIVE'
+          AND expires_at > NOW()
+          AND user_id <> ?
+      `,
+      [item.seat_id, itemShowtimeId, user_id],
+      (err, rows) => {
+        if (err) {
+          console.log(err);
+          return res.status(500).json({ message: "Lỗi server" });
+        }
+
+        if (rows.length) {
+          return res.status(409).json({
+            message: "Một hoặc nhiều ghế đang được người khác giữ",
+          });
+        }
+
+        checkNextSeatHold(index + 1);
+      }
+    );
+  }
+
   function proceedCreateOrder() {
-    // Start transaction
     db.beginTransaction((txErr) => {
-
       if (txErr) {
-
         console.log(txErr);
-
         return res.status(500).json({ message: "Lỗi server" });
+      }
+
+      function rollbackAndRespond(status, payload) {
+        return db.rollback(() => res.status(status).json(payload));
+      }
+
+      function createOrder() {
+        const insertOrderSql = `
+          INSERT INTO orders
+          (user_id, event_id, showtime_id, promotion_id, total_price, status)
+          VALUES (?, ?, ?, ?, ?, 'PENDING')
+        `;
+
+        db.query(
+          insertOrderSql,
+          [user_id, event_id, showtime_id, hasPromotion ? promotion.id : null, finalTotal],
+          (err, result) => {
+            if (err) {
+              console.log(err);
+              return rollbackAndRespond(500, { message: "Lỗi server" });
+            }
+
+            insertOrderItems(result.insertId, 0);
+          }
+        );
+      }
+
+      function insertOrderItems(orderId, index) {
+        if (index >= items.length) {
+
+  if (!hasPromotion) {
+    
+
+    return db.commit((commitErr) => {
+
+      if (commitErr) {
+
+        console.log(commitErr);
+
+        return rollbackAndRespond(500, {
+          message: "Lỗi server",
+        });
 
       }
 
-      const insertOrderSql = `
-  INSERT INTO orders
-(
-  user_id,
-  event_id,
-  showtime_id,
-  promotion_id,
-  total_price,
-  status
-)
-VALUES
-(
-  ?, ?, ?, ?, ?, 'PENDING'
-)
-`;
+      return res.json({
 
-      db.query(
-  insertOrderSql,
-  [
-  user_id,
-  event_id,
-  showtime_id,
-  promotion_id,
-  total_price,
-],
-        (err, result) => {
+        order_id: orderId,
+        total_price: finalTotal,
+        discount: discountAmount,
 
-          if (err) {
+      });
 
-            console.log(err);
+    });
 
-            return db.rollback(() =>
+  }
 
-              res.status(500).json({ message: "Lỗi server" })
+  db.query(
 
-            );
+    `
+      UPDATE promotions
+SET used_count = used_count + 1
+WHERE id = ?
+AND used_count < quantity
+    `,
 
-          }
+    [promotion.id],
 
-          const orderId = result.insertId;
+   (promotionErr, result) => {
 
-          let idx = 0;
+      if (promotionErr) {
 
-          function processNext() {
+        console.log(promotionErr);
 
-            if (idx >= items.length) {
+        return rollbackAndRespond(500, {
+          message: "Lỗi server",
+        });
 
-              return db.commit((commitErr) => {
+      }
+      if (result.affectedRows === 0) {
 
-                if (commitErr) {
+  return rollbackAndRespond(400, {
+    message: "Mã giảm giá đã hết lượt sử dụng.",
+  });
 
-                  console.log(commitErr);
+}
 
-                  return db.rollback(() =>
+      db.commit((commitErr) => {
 
-                    res.status(500).json({ message: "Lỗi server" })
+        if (commitErr) {
 
-                  );
+          console.log(commitErr);
 
-                }
-
-                res.json({ order_id: orderId, total_price });
-
-              });
-
-            }
-
-            const it = items[idx++];
-
-            const itemShowtimeId =
-  it.showtime_id || showtime_id;
-
-
-const zone_id =
-  it.zone_id || null;
-
-const seat_id =
-  it.seat_id || null;
-
-const quantity =
-  Number(it.quantity || 0);
-
-const price =
-  Number(it.price || 0);
-
-            const insertItemSql = `
-  INSERT INTO order_items
-  (
-    order_id,
-    showtime_id,
-    zone_id,
-    seat_id,
-    quantity,
-    price
-  )
-  VALUES (?, ?, ?, ?, ?, ?)
-`;
-
-            db.query(
-  insertItemSql,
-  [
-    orderId,
-    itemShowtimeId,
-    zone_id,
-    seat_id,
-    quantity,
-    price
-  ],
-              (itemErr) => {
-
-                if (itemErr) {
-
-                  console.log(itemErr);
-
-                  return db.rollback(() =>
-
-                    res.status(500).json({ message: "Lỗi server" })
-
-                  );
-
-                }
-                  processNext();
-
-              }
-
-            );
-
-          }
-
-          processNext();
+          return rollbackAndRespond(500, {
+            message: "Lỗi server",
+          });
 
         }
 
-      );
+        return res.json({
 
+          order_id: orderId,
+          total_price: finalTotal,
+          discount: discountAmount,
+
+        });
+
+      });
+
+    }
+
+  );
+
+}
+        const item = items[index];
+        const insertItemSql = `
+          INSERT INTO order_items
+          (order_id, showtime_id, zone_id, seat_id, quantity, price)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `;
+
+        db.query(
+          insertItemSql,
+          [
+            orderId,
+            item.showtime_id || showtime_id,
+            item.zone_id || null,
+            item.seat_id || null,
+            Number(item.quantity),
+            Number(item.price),
+          ],
+          (itemErr) => {
+            if (itemErr) {
+              console.log(itemErr);
+              return rollbackAndRespond(500, { message: "Lỗi server" });
+            }
+
+            insertOrderItems(orderId, index + 1);
+          }
+        );
+      }
+
+      createOrder();
     });
   }
 
-  // start seat hold checks
-  checkNextSeatHold();
-
+  validatePromotion(() => checkNextSeatHold());
 });
-
 // GET /api/orders/:id
 router.get("/:id", (req, res) => {
 
