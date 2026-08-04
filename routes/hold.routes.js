@@ -4,6 +4,8 @@ const db = require("../db");
 
 // POST /api/holds/bulk
 router.post("/bulk", (req, res) => {
+  console.log("========== HOLD REQUEST ==========");
+console.log(JSON.stringify(req.body, null, 2));
 
 
   db.query(`
@@ -18,6 +20,11 @@ event_id,
 showtime_id,
 seats,
 } = req.body;
+
+console.log("[HOLD] USER:", user_id);
+console.log("[HOLD] EVENT:", event_id);
+console.log("[HOLD] SHOWTIME:", showtime_id);
+console.log("[HOLD] SEATS:", seats);
 
 if (
   !user_id ||
@@ -47,6 +54,10 @@ AND seat_id IN (${placeholders})
 AND status = 'ACTIVE'
 AND expires_at > NOW()
 `;
+
+console.log("[HOLD] CHECK RESULT");
+console.log("ERROR:", err);
+console.log("ROWS:", rows);
 
 db.query(
 checkSql,
@@ -148,12 +159,8 @@ console.log(
 "========== INSERT HOLD =========="
 );
 
-console.log("INSERT VALUES:");
-console.log(insertValues);
-
-console.log("BODY:", req.body);
-console.log("SEATS:", seats);
-console.log("INSERT VALUES:", insertValues);
+console.log("[HOLD] INSERT VALUES");
+console.log(JSON.stringify(insertValues, null, 2));
 db.query(
 insertSql,
 [insertValues],
@@ -161,10 +168,14 @@ insertSql,
 
 if (insertErr) {
 
-  console.log(
-    "INSERT ERROR:",
-    insertErr
-  );
+console.error("========== HOLD INSERT ERROR ==========");
+console.error(insertErr);
+
+if (insertErr.sqlMessage)
+  console.error(insertErr.sqlMessage);
+
+if (insertErr.sql)
+  console.error(insertErr.sql);
 
   return res.status(500).json({
     message: "Server error",
@@ -172,10 +183,7 @@ if (insertErr) {
 
 }
 
-console.log(
-  "INSERT SUCCESS:"
-);
-
+console.log("========== HOLD INSERT SUCCESS ==========");
 console.log(result);
 
 return res.json({
