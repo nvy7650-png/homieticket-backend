@@ -644,8 +644,10 @@ async function processManual(order, item) {
     await query(
       `
         UPDATE showtime_seats
-        SET status = 'SOLD'
-        WHERE showtime_id = ? AND seat_id = ? AND status = 'HELD'
+SET status = 'SOLD'
+WHERE showtime_id = ?
+  AND seat_id = ?
+  AND status = 'AVAILABLE'
       `,
       [
         order.showtime_id,
