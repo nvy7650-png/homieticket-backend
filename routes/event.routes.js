@@ -1434,6 +1434,19 @@ let completedShowtimes = 0;
 
 showtimes.forEach((st) => {
 
+  const startTime = st.start_time
+  ? new Date(st.start_time)
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ")
+  : null;
+
+const endTime = st.end_time
+  ? new Date(st.end_time)
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ")
+  : null;
   db.query(
 
     `
@@ -1445,8 +1458,8 @@ showtimes.forEach((st) => {
     `,
 
     [
-      st.start_time,
-      st.end_time,
+      startTime,
+      endTime,
       st.id,
     ],
 
@@ -1507,8 +1520,8 @@ const saleEnd = zone.sale_end
     [
       zone.price,
       zone.capacity,
-      sale_start,
-      sale_end,
+      saleStart,
+      saleEnd,
       zone.id,
     ],
     (err3, result) => {
