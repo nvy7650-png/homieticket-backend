@@ -118,7 +118,6 @@ router.get("/", (req, res) => {
 
     WHERE
   e.status = 'APPROVED'
-  AND s.start_time > NOW()
   `;
 
   const params = [];
