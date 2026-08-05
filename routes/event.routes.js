@@ -1480,6 +1480,20 @@ showtimes.forEach((st) => {
   console.log("Zone ID:", zone.id);
   console.log("New Price:", zone.price);
 
+  const saleStart = zone.sale_start
+  ? new Date(zone.sale_start)
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ")
+  : null;
+
+const saleEnd = zone.sale_end
+  ? new Date(zone.sale_end)
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ")
+  : null;
+
   db.query(
     `
     UPDATE zones
@@ -1493,8 +1507,8 @@ showtimes.forEach((st) => {
     [
       zone.price,
       zone.capacity,
-      zone.sale_start,
-      zone.sale_end,
+      sale_start,
+      sale_end,
       zone.id,
     ],
     (err3, result) => {
