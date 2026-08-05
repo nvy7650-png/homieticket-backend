@@ -47,6 +47,66 @@ router.get("/", (req, res) => {
     t.event_id = e.id
     AND t.status = 'VALID'
 ) AS sold_count
+ ,
+(
+  SELECT SUM(
+
+    CASE
+
+      WHEN z.zone_type = 'STANDING'
+      THEN z.capacity
+
+      ELSE z.total_rows * z.seats_per_row
+
+    END
+
+  )
+
+  FROM zones z
+
+  WHERE z.event_id = e.id
+
+) AS total_capacity
+ ,
+
+(
+  (
+    SELECT COUNT(*)
+    FROM tickets t
+    WHERE
+      t.event_id = e.id
+      AND t.status = 'VALID'
+  )
+
+  /
+
+  NULLIF(
+
+    (
+      SELECT SUM(
+
+        CASE
+
+          WHEN z.zone_type = 'STANDING'
+          THEN z.capacity
+
+          ELSE z.total_rows * z.seats_per_row
+
+        END
+
+      )
+
+      FROM zones z
+
+      WHERE z.event_id = e.id
+
+    ),
+
+    0
+
+  )
+
+) AS sold_rate
 
     FROM events e
 
@@ -56,7 +116,9 @@ router.get("/", (req, res) => {
     LEFT JOIN showtimes s
       ON s.event_id = e.id
 
-    WHERE e.status = 'APPROVED'
+    WHERE
+  e.status = 'APPROVED'
+  AND s.start_time > NOW()
   `;
 
   const params = [];
@@ -148,6 +210,138 @@ router.get("/showtimes/:id/seats", (req, res) => {
 
     }
   );
+
+});
+
+router.get("/hero", (req, res) => {
+
+  const sql = `
+
+  SELECT
+
+  e.*,
+
+  c.name AS category_name,
+
+  MIN(s.start_time) AS first_showtime,
+
+  (
+    SELECT MIN(z.price)
+    FROM zones z
+    WHERE z.event_id = e.id
+  ) AS min_price,
+
+  (
+    SELECT COUNT(*)
+    FROM tickets t
+    WHERE
+      t.event_id = e.id
+      AND t.status = 'VALID'
+  ) AS sold_count,
+
+  (
+    SELECT SUM(
+
+      CASE
+
+        WHEN z.zone_type = 'STANDING'
+        THEN z.capacity
+
+        ELSE z.total_rows * z.seats_per_row
+
+      END
+
+    )
+
+    FROM zones z
+
+    WHERE z.event_id = e.id
+
+  ) AS total_capacity,
+
+  (
+
+    (
+
+      SELECT COUNT(*)
+
+      FROM tickets t
+
+      WHERE
+
+        t.event_id = e.id
+
+        AND t.status='VALID'
+
+    )
+
+    /
+
+    NULLIF(
+
+      (
+
+        SELECT SUM(
+
+          CASE
+
+            WHEN z.zone_type='STANDING'
+
+            THEN z.capacity
+
+            ELSE z.total_rows * z.seats_per_row
+
+          END
+
+        )
+
+        FROM zones z
+
+        WHERE z.event_id=e.id
+
+      ),
+
+      0
+
+    )
+
+  ) AS sold_rate
+   FROM events e
+
+LEFT JOIN categories c
+ON c.id = e.category_id
+
+LEFT JOIN showtimes s
+ON s.event_id = e.id
+WHERE
+  e.status = 'APPROVED'
+  AND s.start_time > NOW()
+
+GROUP BY
+  e.id
+  ORDER BY
+
+  sold_rate DESC,
+
+  first_showtime ASC
+
+LIMIT 5
+`;
+db.query(sql, (err, results) => {
+
+  if (err) {
+
+    console.log(err);
+
+    return res.status(500).json({
+      message: "Lỗi server",
+    });
+
+  }
+
+  res.json(results);
+
+});
 
 });
 
@@ -654,6 +848,8 @@ FROM zones
   );
 
 });
+
+
 
 router.get("/:id/showtimes", (req, res) => {
 
@@ -1543,4 +1739,6 @@ router.get(
 
   }
 );
+
+
 module.exports = router;
