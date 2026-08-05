@@ -1476,52 +1476,50 @@ showtimes.forEach((st) => {
 
   zones.forEach((zone) => {
 
-    db.query(
+  console.log("========== UPDATE ZONE ==========");
+  console.log("Zone ID:", zone.id);
+  console.log("New Price:", zone.price);
 
-      `
-      UPDATE zones
-      SET
-        price = ?,
-        capacity = ?,
-        sale_start = ?,
-        sale_end = ?
-      WHERE id = ?
-      `,
+  db.query(
+    `
+    UPDATE zones
+    SET
+      price = ?,
+      capacity = ?,
+      sale_start = ?,
+      sale_end = ?
+    WHERE id = ?
+    `,
+    [
+      zone.price,
+      zone.capacity,
+      zone.sale_start,
+      zone.sale_end,
+      zone.id,
+    ],
+    (err3, result) => {
 
-      [
-        zone.price,
-        zone.capacity,
-        zone.sale_start,
-        zone.sale_end,
-        zone.id,
-      ],
+      if (err3) {
+        console.log(err3);
+        return;
+      }
 
-      (err3) => {
+      console.log("Affected Rows:", result.affectedRows);
 
-        if (err3) {
-          console.log(err3);
-        }
+      completedZones++;
 
-        completedZones++;
+      if (completedZones === zones.length) {
 
-        if (
-          completedZones ===
-          zones.length
-        ) {
-
-          return res.json({
-            message:
-              "Cập nhật thành công",
-          });
-
-        }
+        return res.json({
+          message: "Cập nhật thành công",
+        });
 
       }
 
-    );
+    }
+  );
 
-  });
-
+});
 }
 
     }
