@@ -1167,6 +1167,36 @@ router.post("/create-full",
             eventResult.insertId;
 
           const parsedZones = JSON.parse(zones || "[]");
+for (const zone of parsedZones) {
+
+  if (Number(zone.price) < 0) {
+    return res.status(400).json({
+      message: "Giá vé không được nhỏ hơn 0."
+    });
+  }
+
+  if (zone.zone_type === "STANDING") {
+
+    if (Number(zone.capacity) < 0) {
+      return res.status(400).json({
+        message: "Số lượng vé không được nhỏ hơn 0."
+      });
+    }
+
+  } else {
+
+    if (
+      Number(zone.rows) < 0 ||
+      Number(zone.seatsPerRow) < 0
+    ) {
+      return res.status(400).json({
+        message: "Số hàng và số ghế mỗi hàng không được nhỏ hơn 0."
+      });
+    }
+
+  }
+
+}
 
           const formatMySQLDateTime = (value) => {
             if (!value) return null;
