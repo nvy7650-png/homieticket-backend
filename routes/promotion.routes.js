@@ -15,6 +15,29 @@ router.get(
     const organizerId =
       req.params.organizerId;
 
+    db.query(
+  `
+  UPDATE promotions
+SET status =
+CASE
+    WHEN end_date < NOW()
+      OR used_count >= quantity
+      THEN 'INACTIVE'
+
+    WHEN start_date <= NOW()
+      AND end_date >= NOW()
+      AND used_count < quantity
+      THEN 'ACTIVE'
+
+    ELSE 'INACTIVE'
+END
+  `,
+  (updateErr) => {
+
+    if (updateErr) {
+      console.log(updateErr);
+    }
+
     const sql = `
       SELECT
         p.*,
@@ -32,20 +55,20 @@ router.get(
       (err, rows) => {
 
         if (err) {
-
           console.log(err);
-
           return res.status(500).json({
             success: false,
             message: "Server error",
           });
-
         }
 
         res.json(rows);
 
       }
     );
+
+  }
+);
 
   }
 );
@@ -85,6 +108,16 @@ router.post(
       end_date,
 
     } = req.body;
+    const now = new Date();
+
+let status = "INACTIVE";
+
+if (
+  now >= new Date(start_date) &&
+  now <= new Date(end_date)
+) {
+  status = "ACTIVE";
+}
 
     // ==========================
     // VALIDATE
@@ -248,7 +281,7 @@ router.post(
 
           (
 
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE'
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 
           )
 
@@ -259,32 +292,20 @@ router.post(
           sql,
 
           [
-
-            organizer_id,
-
-            event_id,
-
-            code.trim().toUpperCase(),
-
-            name,
-
-            description,
-
-            discount_type,
-
-            discount_value,
-
-            min_order_value,
-
-            max_discount,
-
-            quantity,
-
-            start_date,
-
-            end_date,
-
-          ],
+  organizer_id,
+  event_id,
+  code.trim().toUpperCase(),
+  name,
+  description,
+  discount_type,
+  discount_value,
+  min_order_value,
+  max_discount,
+  quantity,
+  start_date,
+  end_date,
+  status,
+],
 
           (err, result) => {
 
@@ -620,35 +641,35 @@ router.put(
             // UPDATE
             // ==========================
 
+            const now = new Date();
+
+let status = "INACTIVE";
+
+if (
+  now >= new Date(start_date) &&
+  now <= new Date(end_date) &&
+  promotion.used_count < quantity
+) {
+  status = "ACTIVE";
+}
+
             const sql = `
 
               UPDATE promotions
-
-              SET
-
-                event_id = ?,
-
-                code = ?,
-
-                name = ?,
-
-                description = ?,
-
-                discount_type = ?,
-
-                discount_value = ?,
-
-                min_order_value = ?,
-
-                max_discount = ?,
-
-                quantity = ?,
-
-                start_date = ?,
-
-                end_date = ?
-
-              WHERE id = ?
+SET
+  event_id = ?,
+  code = ?,
+  name = ?,
+  description = ?,
+  discount_type = ?,
+  discount_value = ?,
+  min_order_value = ?,
+  max_discount = ?,
+  quantity = ?,
+  start_date = ?,
+  end_date = ?,
+  status = ?
+WHERE id = ?
 
             `;
 
@@ -657,32 +678,20 @@ router.put(
               sql,
 
               [
-
-                event_id,
-
-                code.trim().toUpperCase(),
-
-                name,
-
-                description,
-
-                discount_type,
-
-                discount_value,
-
-                min_order_value,
-
-                max_discount,
-
-                quantity,
-
-                start_date,
-
-                end_date,
-
-                promotionId,
-
-              ],
+  event_id,
+  code.trim().toUpperCase(),
+  name,
+  description,
+  discount_type,
+  discount_value,
+  min_order_value,
+  max_discount,
+  quantity,
+  start_date,
+  end_date,
+  status,
+  promotionId,
+],
 
               (err) => {
 
