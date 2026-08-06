@@ -30,27 +30,59 @@ router.get("/", (req, res) => {
 router.put("/:id", (req, res) => {
 
   const { name, description } = req.body;
+  const { name, description } = req.body;
 
-  const sql = `
-    UPDATE categories
-    SET
-      name = ?,
-      description = ?
-    WHERE id = ?
+if (!name || !name.trim()) {
+  return res.status(400).json({
+    message: "Tên danh mục không được để trống",
+  });
+}
+
+  const checkSql = `
+    SELECT id
+    FROM categories
+    WHERE LOWER(name) = LOWER(?)
+    AND id <> ?
   `;
 
   db.query(
-    sql,
-    [name, description, req.params.id],
-    (err, result) => {
+    checkSql,
+    [name.trim(), req.params.id],
+    (checkErr, rows) => {
 
-      if (err) {
-        return res.status(500).json(err);
+      if (checkErr) {
+        return res.status(500).json(checkErr);
       }
 
-      res.json({
-        message: "Cập nhật danh mục thành công"
-      });
+      if (rows.length > 0) {
+        return res.status(400).json({
+          message: "Tên danh mục đã tồn tại"
+        });
+      }
+
+      const sql = `
+        UPDATE categories
+        SET
+          name = ?,
+          description = ?
+        WHERE id = ?
+      `;
+
+      db.query(
+        sql,
+        [name.trim(), description, req.params.id],
+        (err) => {
+
+          if (err) {
+            return res.status(500).json(err);
+          }
+
+          res.json({
+            message: "Cập nhật danh mục thành công"
+          });
+
+        }
+      );
 
     }
   );
@@ -59,125 +91,57 @@ router.put("/:id", (req, res) => {
 
 // CREATE CATEGORY
 router.post("/", (req, res) => {
-  // Kiểm tra trùng tên
-const checkSql = `
-  SELECT id
-  FROM categories
-  WHERE LOWER(name) = LOWER(?)
-`;
-
-db.query(checkSql, [name.trim()], (checkErr, rows) => {
-
-  if (checkErr) {
-    return res.status(500).json(checkErr);
-  }
-
-  if (rows.length > 0) {
-    return res.status(400).json({
-      message: "Tên danh mục đã tồn tại"
-    });
-  }
-
-  const sql = `
-    INSERT INTO categories
-    (name, description)
-    VALUES (?, ?)
-  `;
-
-  db.query(
-    sql,
-    [name.trim(), description],
-    (err, result) => {
-
-      if (err) {
-        return res.status(500).json(err);
-      }
-
-      res.json({
-        message: "Thêm danh mục thành công",
-        id: result.insertId,
-      });
-
-    }
-  );
-
-});
 
   const { name, description } = req.body;
+  if (!name || !name.trim()) {
+  return res.status(400).json({
+    message: "Tên danh mục không được để trống",
+  });
+}
 
-  // Kiểm tra trùng tên (trừ chính nó)
-const checkSql = `
-  SELECT id
-  FROM categories
-  WHERE LOWER(name) = LOWER(?)
-  AND id <> ?
-`;
-
-db.query(
-  checkSql,
-  [name.trim(), req.params.id],
-  (checkErr, rows) => {
-
-    if (checkErr) {
-      return res.status(500).json(checkErr);
-    }
-
-    if (rows.length > 0) {
-      return res.status(400).json({
-        message: "Tên danh mục đã tồn tại"
-      });
-    }
-
-    const sql = `
-      UPDATE categories
-      SET
-        name = ?,
-        description = ?
-      WHERE id = ?
-    `;
-
-    db.query(
-      sql,
-      [
-        name.trim(),
-        description,
-        req.params.id
-      ],
-      (err) => {
-
-        if (err) {
-          return res.status(500).json(err);
-        }
-
-        res.json({
-          message: "Cập nhật danh mục thành công"
-        });
-
-      }
-    );
-
-  }
-);
-
-  const sql = `
-    INSERT INTO categories
-    (name, description)
-    VALUES (?, ?)
+  const checkSql = `
+    SELECT id
+    FROM categories
+    WHERE LOWER(name) = LOWER(?)
   `;
 
   db.query(
-    sql,
-    [name, description],
-    (err, result) => {
+    checkSql,
+    [name.trim()],
+    (checkErr, rows) => {
 
-      if (err) {
-        return res.status(500).json(err);
+      if (checkErr) {
+        return res.status(500).json(checkErr);
       }
 
-      res.json({
-        message: "Thêm danh mục thành công",
-        id: result.insertId,
-      });
+      if (rows.length > 0) {
+        return res.status(400).json({
+          message: "Tên danh mục đã tồn tại"
+        });
+      }
+
+      const sql = `
+        INSERT INTO categories
+        (name, description)
+        VALUES (?, ?)
+      `;
+
+      db.query(
+        sql,
+        [name.trim(), description],
+        (err, result) => {
+
+          if (err) {
+            return res.status(500).json(err);
+          }
+
+          res.json({
+            message: "Thêm danh mục thành công",
+            id: result.insertId,
+          });
+
+        }
+      );
 
     }
   );
@@ -186,25 +150,49 @@ db.query(
 // DELETE CATEGORY
 router.delete("/:id", (req, res) => {
 
-  const sql =
-    "DELETE FROM categories WHERE id = ?";
+  const checkSql = `
+    SELECT id
+    FROM events
+    WHERE category_id = ?
+    LIMIT 1
+  `;
 
   db.query(
-    sql,
+    checkSql,
     [req.params.id],
-    (err) => {
+    (checkErr, rows) => {
 
-      if (err) {
-        return res.status(500).json(err);
+      if (checkErr) {
+        return res.status(500).json(checkErr);
       }
 
-      res.json({
-        message: "Xóa danh mục thành công",
-      });
+      if (rows.length > 0) {
+        return res.status(400).json({
+          message: "Danh mục đang được sử dụng, không thể xóa"
+        });
+      }
+
+      const sql =
+        "DELETE FROM categories WHERE id = ?";
+
+      db.query(
+        sql,
+        [req.params.id],
+        (err) => {
+
+          if (err) {
+            return res.status(500).json(err);
+          }
+
+          res.json({
+            message: "Xóa danh mục thành công"
+          });
+
+        }
+      );
 
     }
   );
 
 });
-
 module.exports = router;
