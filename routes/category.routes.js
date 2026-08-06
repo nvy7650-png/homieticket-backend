@@ -59,8 +59,105 @@ router.put("/:id", (req, res) => {
 
 // CREATE CATEGORY
 router.post("/", (req, res) => {
+  // Kiểm tra trùng tên
+const checkSql = `
+  SELECT id
+  FROM categories
+  WHERE LOWER(name) = LOWER(?)
+`;
+
+db.query(checkSql, [name.trim()], (checkErr, rows) => {
+
+  if (checkErr) {
+    return res.status(500).json(checkErr);
+  }
+
+  if (rows.length > 0) {
+    return res.status(400).json({
+      message: "Tên danh mục đã tồn tại"
+    });
+  }
+
+  const sql = `
+    INSERT INTO categories
+    (name, description)
+    VALUES (?, ?)
+  `;
+
+  db.query(
+    sql,
+    [name.trim(), description],
+    (err, result) => {
+
+      if (err) {
+        return res.status(500).json(err);
+      }
+
+      res.json({
+        message: "Thêm danh mục thành công",
+        id: result.insertId,
+      });
+
+    }
+  );
+
+});
 
   const { name, description } = req.body;
+
+  // Kiểm tra trùng tên (trừ chính nó)
+const checkSql = `
+  SELECT id
+  FROM categories
+  WHERE LOWER(name) = LOWER(?)
+  AND id <> ?
+`;
+
+db.query(
+  checkSql,
+  [name.trim(), req.params.id],
+  (checkErr, rows) => {
+
+    if (checkErr) {
+      return res.status(500).json(checkErr);
+    }
+
+    if (rows.length > 0) {
+      return res.status(400).json({
+        message: "Tên danh mục đã tồn tại"
+      });
+    }
+
+    const sql = `
+      UPDATE categories
+      SET
+        name = ?,
+        description = ?
+      WHERE id = ?
+    `;
+
+    db.query(
+      sql,
+      [
+        name.trim(),
+        description,
+        req.params.id
+      ],
+      (err) => {
+
+        if (err) {
+          return res.status(500).json(err);
+        }
+
+        res.json({
+          message: "Cập nhật danh mục thành công"
+        });
+
+      }
+    );
+
+  }
+);
 
   const sql = `
     INSERT INTO categories
