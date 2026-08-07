@@ -108,8 +108,22 @@ router.post(
       end_date,
 
     } = req.body;
-    const now = new Date();
 
+    const promo = rows[0];
+   const now = new Date(
+  new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Ho_Chi_Minh",
+  })
+);
+
+    console.log("========== APPLY ==========");
+console.log("NOW:", now);
+console.log("START:", promo.start_date);
+console.log("END:", promo.end_date);
+console.log("USED:", promo.used_count);
+console.log("QTY:", promo.quantity);
+console.log("TOTAL:", total_price);
+console.log("MIN:", promo.min_order_value);
 let status = "INACTIVE";
 
 if (
