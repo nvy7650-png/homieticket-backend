@@ -111,7 +111,11 @@ WHERE t.id = ?
 // POST /api/tickets/checkin
 router.post("/checkin", (req, res) => {
 
-  const { ticket_code } = req.body;
+ const {
+  ticket_code,
+  event_id,
+  showtime_id,
+} = req.body;
 
   if (!ticket_code) {
 
@@ -123,20 +127,28 @@ router.post("/checkin", (req, res) => {
   }
 
   const findSql = `
-    SELECT
-      t.*,
-      e.title AS event_title,
-      s.seat_code
-    FROM tickets t
+SELECT
+    t.*,
 
-    LEFT JOIN events e
-      ON e.id = t.event_id
+    e.title AS event_title,
 
-    LEFT JOIN seats s
-      ON s.id = t.seat_id
+    s.seat_code,
 
-    WHERE t.ticket_code = ?
-  `;
+    st.start_time
+
+FROM tickets t
+
+LEFT JOIN events e
+ON e.id = t.event_id
+
+LEFT JOIN seats s
+ON s.id = t.seat_id
+
+LEFT JOIN showtimes st
+ON st.id = t.showtime_id
+
+WHERE t.ticket_code = ?
+`;
 
   db.query(
     findSql,
@@ -164,6 +176,53 @@ router.post("/checkin", (req, res) => {
       }
 
       const ticket = rows[0];
+
+      if (ticket.event_id != event_id) {
+
+  return res.status(400).json({
+
+    success: false,
+
+    message: "Vé không thuộc sự kiện này.",
+
+  });
+
+}
+
+if (ticket.showtime_id != showtime_id) {
+
+  return res.status(400).json({
+
+    success: false,
+
+    message: "Vé không thuộc suất diễn này.",
+
+  });
+
+}
+
+const now = new Date();
+
+const startTime = new Date(ticket.start_time);
+
+const deadline = new Date(startTime);
+
+deadline.setMinutes(
+  deadline.getMinutes() + 15
+);
+
+if (now > deadline) {
+
+  return res.status(400).json({
+
+    success: false,
+
+    message:
+      "Đã quá thời gian check-in (15 phút sau giờ diễn).",
+
+  });
+
+}
 
       if (ticket.status === "USED") {
 
