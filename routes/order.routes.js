@@ -197,62 +197,6 @@ router.post("/", (req, res) => {
 
   }
 
-  db.query(
-
-    `
-      UPDATE promotions
-SET used_count = used_count + 1
-WHERE id = ?
-AND used_count < quantity
-    `,
-
-    [promotion.id],
-
-   (promotionErr, result) => {
-
-      if (promotionErr) {
-
-        console.log(promotionErr);
-
-        return rollbackAndRespond(500, {
-          message: "Lỗi server",
-        });
-
-      }
-      if (result.affectedRows === 0) {
-
-  return rollbackAndRespond(400, {
-    message: "Mã giảm giá đã hết lượt sử dụng.",
-  });
-
-}
-
-      db.commit((commitErr) => {
-
-        if (commitErr) {
-
-          console.log(commitErr);
-
-          return rollbackAndRespond(500, {
-            message: "Lỗi server",
-          });
-
-        }
-
-        return res.json({
-
-          order_id: orderId,
-          total_price: finalTotal,
-          discount: discountAmount,
-
-        });
-
-      });
-
-    }
-
-  );
-
 }
         const item = items[index];
         const insertItemSql = `
