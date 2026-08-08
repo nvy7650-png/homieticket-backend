@@ -7,11 +7,8 @@ const {
   sendOTP,
 } = require("../services/mail.service");
 
-// =============================
 // REGISTER USER
-// =============================
 router.post("/register", (req, res) => {
-
   const {
     name,
     email,
@@ -26,21 +23,14 @@ router.post("/register", (req, res) => {
     WHERE email = ?
     OR phone = ?
   `;
-
   db.query(
-
     checkSql,
-
     [email, phone],
-
     (checkErr, checkResult) => {
-
       if (checkErr) {
-
         return res.status(500).json({
           message: "Server error",
         });
-
       }
 
       // EMAIL EXISTS
@@ -51,11 +41,9 @@ router.post("/register", (req, res) => {
         );
 
       if (emailExists) {
-
         return res.status(400).json({
           message: "Email đã tồn tại",
         });
-
       }
 
       // PHONE EXISTS
@@ -66,12 +54,10 @@ router.post("/register", (req, res) => {
         );
 
       if (phoneExists) {
-
         return res.status(400).json({
           message:
             "Số điện thoại đã tồn tại",
         });
-
       }
 
       // INSERT USER
@@ -89,9 +75,7 @@ router.post("/register", (req, res) => {
       `;
 
       db.query(
-
         sql,
-
         [
           name,
           email,
@@ -102,52 +86,31 @@ router.post("/register", (req, res) => {
         ],
 
         (err, result) => {
-
           if (err) {
-
             return res.status(500).json({
               message:
                 "Đăng ký thất bại",
             });
-
           }
-
           res.json({
-
             message:
               "Đăng ký thành công",
-
             user: {
-
-              id:
-                result.insertId,
-
+              id:result.insertId,
               name,
               email,
-
               role:
                 "USER",
-
             },
-
           });
-
         }
-
       );
-
     }
-
   );
-
 });
 
-
-// =============================
 // REGISTER ORGANIZER
-// =============================
 router.post("/organizer/register", (req, res) => {
-
   const {
     organization_name,
     email,
@@ -162,21 +125,15 @@ router.post("/organizer/register", (req, res) => {
     WHERE email = ?
     OR phone = ?
   `;
-
   db.query(
-
     checkSql,
-
     [email, phone],
 
     (checkErr, checkResult) => {
-
       if (checkErr) {
-
         return res.status(500).json({
           message: "Server error",
         });
-
       }
 
       // EMAIL EXISTS
@@ -187,12 +144,10 @@ router.post("/organizer/register", (req, res) => {
         );
 
       if (emailExists) {
-
         return res.status(400).json({
           message:
             "Email đã tồn tại",
         });
-
       }
 
       // PHONE EXISTS
@@ -203,12 +158,10 @@ router.post("/organizer/register", (req, res) => {
         );
 
       if (phoneExists) {
-
         return res.status(400).json({
           message:
             "Số điện thoại đã tồn tại",
         });
-
       }
 
       // INSERT ORGANIZER
@@ -226,9 +179,7 @@ router.post("/organizer/register", (req, res) => {
       `;
 
       db.query(
-
         sql,
-
         [
           organization_name,
           email,
@@ -239,54 +190,34 @@ router.post("/organizer/register", (req, res) => {
         ],
 
         (err, result) => {
-
           if (err) {
-
             return res.status(500).json({
               message:
                 "Đăng ký organizer thất bại",
             });
-
           }
 
           res.json({
-
             message:
               "Đăng ký organizer thành công",
-
             user: {
-
               id:
                 result.insertId,
-
               name:
                 organization_name,
-
               email,
-
               role:
                 "ORGANIZER",
-
             },
-
           });
-
         }
-
       );
-
     }
-
   );
-
 });
 
-
-// =============================
 // LOGIN
-// =============================
 router.post("/login", (req, res) => {
-
   const {
     email,
     password,
@@ -304,88 +235,67 @@ router.post("/login", (req, res) => {
     FROM users
     WHERE email = ?
   `;
-
   db.query(
-
     sql,
-
     [email],
-
     (err, results) => {
-
       if (err) {
-
         return res.status(500).json({
           message: "Server error",
         });
-
       }
 
       // EMAIL NOT FOUND
       if (
         results.length === 0
       ) {
-
         return res.status(404).json({
           message:
             "Email không tồn tại",
         });
-
       }
-
       const user =
         results[0];
 
       // ACCOUNT LOCKED
-if (
-  user.status === "BLOCKED"
-) {
+      if (
+         user.status === "BLOCKED"
+        ) {
 
-  return res.status(403).json({
-    message:
-      "Tài khoản đã bị khóa",
-  });
+        return res.status(403).json({
+          message:
+            "Tài khoản đã bị khóa",
+        });
+      }
 
-}
-
-// WRONG PASSWORD
-if (
-  user.password !==
-  password
-) {
-
-  return res.status(401).json({
-    message:
-      "Sai mật khẩu",
-  });
-
-}
+      // WRONG PASSWORD
+      if (
+        user.password !==
+        password
+      ) {
+        return res.status(401).json({
+          message:
+            "Sai mật khẩu",
+        });
+      }
 
       // REMOVE PASSWORD
       delete user.password;
 
       // SUCCESS
       res.json({
-
         message:
           "Đăng nhập thành công",
-
         user,
-
       });
-
     }
-
   );
-
 });
-// =============================
+
 // BLOCK USER
-// =============================
 router.put(
   "/users/:id/block",
   (req, res) => {
-
     db.query(
       `
       UPDATE users
@@ -394,36 +304,27 @@ router.put(
       `,
       [req.params.id],
       (err) => {
-
         if (err) {
-
           return res
             .status(500)
             .json({
               message:
                 "Lỗi khóa tài khoản",
             });
-
         }
-
         res.json({
           message:
             "Đã khóa tài khoản",
         });
-
       }
     );
-
   }
 );
 
-// =============================
 // UNBLOCK USER
-// =============================
 router.put(
   "/users/:id/unblock",
   (req, res) => {
-
     db.query(
       `
       UPDATE users
@@ -432,35 +333,27 @@ router.put(
       `,
       [req.params.id],
       (err) => {
-
         if (err) {
-
           return res
             .status(500)
             .json({
               message:
                 "Lỗi mở khóa",
             });
-
         }
-
         res.json({
           message:
             "Đã mở khóa",
         });
-
       }
     );
-
   }
 );
-// =============================
+
 // GET ALL USERS
-// =============================
 router.get(
   "/users",
   (req, res) => {
-
     db.query(
       `
       SELECT
@@ -474,29 +367,21 @@ router.get(
       ORDER BY id DESC
       `,
       (err, results) => {
-
         if (err) {
-
           return res
             .status(500)
             .json({
               message:
                 "Server error",
             });
-
         }
-
         res.json(results);
-
       }
     );
-
   }
 );
 
-// =============================
 // GET USER DETAIL
-// =============================
 router.get(
 "/users/:id",
 (req, res) => {
@@ -983,135 +868,77 @@ router.post(
       [email],
 
       async (err, rows) => {
-
         if (err) {
-
           console.log(err);
-
           return res.status(500).json({
-
             success: false,
-
             message: "Server error"
-
           });
-
         }
 
         if (!rows.length) {
-
           return res.status(404).json({
-
             success: false,
-
             message: "Email không tồn tại."
-
           });
-
         }
 
         const otp = Math.floor(
-
           100000 +
-
           Math.random() * 900000
-
         ).toString();
 
         const expiredAt =
-
           new Date(
-
             Date.now() +
-
             5 * 60 * 1000
-
           );
-
         db.query(
-
           `
           UPDATE users
           SET
-            reset_otp = ?,
-            otp_expired_at = ?
+          reset_otp = ?,
+          otp_expired_at = ?
           WHERE email = ?
           `,
-
           [
-
             otp,
-
             expiredAt,
-
             email
-
           ],
 
           async (updateErr) => {
-
             if (updateErr) {
-
               console.log(updateErr);
-
               return res.status(500).json({
-
                 success: false,
-
                 message: "Không thể tạo OTP."
-
               });
-
             }
-
             try {
-
               await sendOTP(
-
                 email,
-
                 otp
-
               );
-
               return res.json({
-
                 success: true,
-
                 message:
-
                   "OTP đã được gửi tới email."
-
               });
-
             }
-
             catch (mailErr) {
-
               console.log(mailErr);
-
               return res.status(500).json({
-
                 success: false,
-
                 message:
-
                   "Không gửi được email."
-
               });
-
             }
-
           }
-
         );
-
       }
-
     );
-
   }
-
 );
 
 // =============================
@@ -1185,64 +1012,40 @@ router.post(
 
             message:
               "Bạn chưa yêu cầu OTP.",
-
           });
-
         }
 
         if (
-
           user.reset_otp !== otp
-
         ) {
-
           return res.status(400).json({
-
             success: false,
-
             message:
               "OTP không chính xác.",
-
           });
-
         }
 
         if (
-
           new Date() >
-
           new Date(
             user.otp_expired_at
           )
-
         ) {
-
           return res.status(400).json({
-
             success: false,
-
             message:
               "OTP đã hết hạn.",
-
           });
-
         }
 
         return res.json({
-
           success: true,
-
           message:
             "OTP hợp lệ.",
-
         });
-
       }
-
     );
-
   }
-
 );
 
 // =============================
@@ -1264,163 +1067,95 @@ router.post(
     } = req.body;
 
     if (
-
       !email ||
-
       !otp ||
-
       !newPassword
-
     ) {
-
       return res.status(400).json({
-
         success: false,
-
         message:
           "Thiếu dữ liệu."
-
       });
-
     }
 
     db.query(
-
       `
       SELECT
-        reset_otp,
-        otp_expired_at
+      reset_otp,
+      otp_expired_at
       FROM users
       WHERE email = ?
       `,
-
       [email],
 
       (err, rows) => {
-
         if (err) {
-
           console.log(err);
-
           return res.status(500).json({
-
             success:false,
-
             message:"Server error"
-
           });
-
         }
-
         if (!rows.length) {
-
           return res.status(404).json({
-
             success:false,
-
             message:"Email không tồn tại."
-
           });
-
         }
-
         const user =
           rows[0];
-
         if (
-
           user.reset_otp !== otp
-
         ) {
-
           return res.status(400).json({
-
             success:false,
-
             message:"OTP không đúng."
-
           });
-
         }
-
         if (
-
           new Date() >
-
           new Date(
             user.otp_expired_at
           )
-
         ) {
-
           return res.status(400).json({
-
             success:false,
-
             message:"OTP đã hết hạn."
-
           });
-
         }
-
         db.query(
-
           `
           UPDATE users
           SET
-
             password = ?,
-
             reset_otp = NULL,
-
             otp_expired_at = NULL
-
           WHERE email = ?
           `,
-
           [
-
             newPassword,
-
             email
-
           ],
 
           (updateErr) => {
-
             if (updateErr) {
-
               console.log(updateErr);
-
               return res.status(500).json({
-
                 success:false,
-
                 message:
                   "Không thể cập nhật mật khẩu."
-
               });
-
             }
 
             return res.json({
-
               success:true,
-
               message:
                 "Đổi mật khẩu thành công."
-
             });
-
           }
-
         );
-
       }
-
     );
-
   }
-
 );
 module.exports = router;
