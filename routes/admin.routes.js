@@ -1,31 +1,26 @@
 const express = require("express");
-
 const router = express.Router();
-
 const db = require("../db");
 
 // ============================
-// ADMIN STATS
+// Lấy thống kê tổng quan của hệ thống cho Admin Dashboard.
 // ============================
 
 router.get("/stats", (req, res) => {
 
   // USERS
-  const usersSql =
-    "SELECT COUNT(*) AS total FROM users";
+  const usersSql = "SELECT COUNT(*) AS total FROM users";
 
   // EVENTS
-  const eventsSql =
-    "SELECT COUNT(*) AS total FROM events";
+  const eventsSql = "SELECT COUNT(*) AS total FROM events";
 
   // ORDERS
-  const ordersSql =
-    "SELECT COUNT(*) AS total FROM orders";
+  const ordersSql = "SELECT COUNT(*) AS total FROM orders";
 
   // REVENUE
   const revenueSql = `
     SELECT
-      IFNULL(SUM(amount), 0) AS total
+    IFNULL(SUM(amount), 0) AS total
     FROM payments
     WHERE status = 'SUCCESS'
   `;
@@ -33,72 +28,53 @@ router.get("/stats", (req, res) => {
   db.query(usersSql, (err1, usersResult) => {
 
     if (err1) {
-
       return res
         .status(500)
         .json(err1);
-
     }
 
     db.query(eventsSql, (err2, eventsResult) => {
 
       if (err2) {
-
         return res
           .status(500)
           .json(err2);
-
       }
 
       db.query(ordersSql, (err3, ordersResult) => {
-
         if (err3) {
-
           return res
             .status(500)
             .json(err3);
-
         }
 
         db.query(revenueSql, (err4, revenueResult) => {
-
           if (err4) {
-
             return res
               .status(500)
               .json(err4);
-
           }
 
           res.json({
+            totalUsers: usersResult[0].total,
 
-            totalUsers:
-              usersResult[0].total,
+            totalEvents: eventsResult[0].total,
 
-            totalEvents:
-              eventsResult[0].total,
+            totalOrders: ordersResult[0].total,
 
-            totalOrders:
-              ordersResult[0].total,
-
-            revenue:
-              revenueResult[0].total,
-
+            revenue: revenueResult[0].total,
           });
-
         });
-
       });
-
     });
-
   });
-
 });
 
-// GET ALL USERS
-router.get("/users", (req, res) => {
+// ============================
+// Lấy danh sách tất cả người dùng.
+// ============================
 
+router.get("/users", (req, res) => {
   const sql = `
     SELECT
       id,
@@ -114,25 +90,20 @@ router.get("/users", (req, res) => {
   db.query(
     sql,
     (err, rows) => {
-
       if (err) {
-
         console.log(err);
-
         return res.status(500).json({
           message: "Lỗi server",
         });
-
       }
-
       res.json(rows);
-
     }
   );
-
 });
 
-// BLOCK USER
+// ============================
+// Khóa tài khoản người dùng.
+// ============================
 router.put("/users/:id/block", (req, res) => {
 
   const sql = `
@@ -145,27 +116,23 @@ router.put("/users/:id/block", (req, res) => {
     sql,
     [req.params.id],
     (err) => {
-
       if (err) {
-
         console.log(err);
-
         return res.status(500).json({
           message: "Lỗi server",
         });
-
       }
 
       res.json({
         success: true,
       });
-
     }
   );
-
 });
 
-// UNBLOCK USER
+// ============================
+// Mở khóa tài khoản người dùng.
+// ============================
 router.put("/users/:id/unblock", (req, res) => {
 
   const sql = `
@@ -178,31 +145,24 @@ router.put("/users/:id/unblock", (req, res) => {
     sql,
     [req.params.id],
     (err) => {
-
       if (err) {
-
         console.log(err);
-
         return res.status(500).json({
           message: "Lỗi server",
         });
-
       }
 
       res.json({
         success: true,
       });
-
     }
   );
-
 });
+
 // =============================
-// GET USER DETAIL
+//Lấy thông tin chi tiết của một user dựa theo id
 // =============================
-router.get(
-  "/users/:id",
-  (req, res) => {
+router.get( "/users/:id", (req, res) => {
 
     db.query(
       `
@@ -217,45 +177,40 @@ router.get(
       FROM users
       WHERE id = ?
       `,
+
       [req.params.id],
+
       (err, results) => {
-
         if (err) {
-
           return res
             .status(500)
             .json({
               message:
                 "Server error",
             });
-
         }
 
         if (
           results.length === 0
         ) {
-
           return res
             .status(404)
             .json({
               message:
                 "Không tìm thấy user",
             });
-
-        }
+          } 
 
         res.json(
           results[0]
         );
-
       }
     );
-
   }
 );
 
 // =============================
-// GET ALL ORDERS
+// Lấy danh sách tất cả đơn hàng
 // =============================
 router.get("/orders", (req, res) => {
 
@@ -265,37 +220,28 @@ router.get("/orders", (req, res) => {
       o.total_price,
       o.status,
       o.created_at,
-
       e.id AS event_id,
       e.title AS event_title
-
     FROM orders o
-
-    LEFT JOIN events e
-      ON o.event_id = e.id
-
+    LEFT JOIN events e 
+    ON o.event_id = e.id
     ORDER BY o.created_at DESC
   `;
 
   db.query(sql, (err, rows) => {
-
     if (err) {
-
       console.log(err);
-
       return res.status(500).json({
         message: "Lỗi server",
       });
-
     }
 
     res.json(rows);
-
   });
-
 });
+
 // =============================
-// GET REVENUE
+// Lấy danh sách các giao dịch thanh toán thành công để Admin theo dõi doanh thu.
 // =============================
 router.get("/revenue", (req, res) => {
 
@@ -307,45 +253,31 @@ router.get("/revenue", (req, res) => {
       p.amount,
       p.status,
       p.paid_at,
-
       e.id AS event_id,
       e.title AS event_title,
-
       u.id AS organizer_id,
       u.name AS organizer_name,
       u.email AS organizer_email
-
     FROM payments p
-
     LEFT JOIN orders o
       ON p.order_id = o.id
-
     LEFT JOIN events e
       ON o.event_id = e.id
-
     LEFT JOIN users u
       ON e.organizer_id = u.id
-
     WHERE p.status = 'SUCCESS'
-
     ORDER BY p.paid_at DESC
   `;
 
   db.query(sql, (err, rows) => {
-
     if (err) {
-
       console.log("GET REVENUE ERROR:", err);
-
       return res.status(500).json({
         message: "Lỗi server",
       });
-
     }
-
     res.json(rows);
-
   });
-
 });
+
 module.exports = router;
