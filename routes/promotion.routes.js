@@ -39,15 +39,43 @@ END
     }
 
     const sql = `
-      SELECT
-        p.*,
-        e.title AS event_title
-      FROM promotions p
-      LEFT JOIN events e
-        ON e.id = p.event_id
-      WHERE p.organizer_id = ?
-      ORDER BY p.created_at DESC
-    `;
+  SELECT
+    p.id,
+    p.code,
+    p.name,
+    p.description,
+    p.event_id,
+    p.discount_type,
+    p.discount_value,
+    p.min_order_value,
+    p.max_discount,
+    p.quantity,
+    p.used_count,
+    p.status,
+
+    DATE_FORMAT(
+      p.start_date,
+      '%Y-%m-%d %H:%i:%s'
+    ) AS start_date,
+
+    DATE_FORMAT(
+      p.end_date,
+      '%Y-%m-%d %H:%i:%s'
+    ) AS end_date,
+
+    p.created_at,
+
+    e.title AS event_title
+
+  FROM promotions p
+
+  LEFT JOIN events e
+    ON e.id = p.event_id
+
+  WHERE p.organizer_id = ?
+
+  ORDER BY p.created_at DESC
+`;
 
     db.query(
       sql,
