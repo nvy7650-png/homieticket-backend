@@ -28,75 +28,237 @@ router.post("/", (req, res) => {
   let finalTotal = originalTotal;
 
   function validatePromotion(callback) {
-    if (!hasPromotion) return callback();
+  if (!hasPromotion) return callback();
 
-    db.query(
-  `
-    SELECT *
+  db.query(
+    `
+    SELECT
+      *,
+      CASE
+        WHEN start_date > NOW()
+          THEN 'NOT_STARTED'
+
+        WHEN end_date < NOW()
+          THEN 'EXPIRED'
+
+        WHEN quantity IS NOT NULL
+          AND used_count >= quantity
+          THEN 'SOLD_OUT'
+
+        ELSE 'ACTIVE'
+      END AS promotion_status
+
     FROM promotions
+
     WHERE id = ?
+
     AND (
       event_id IS NULL
       OR event_id = ?
     )
-  `,
-  [
-    promotion_id,
-    event_id,
-  ],
-  (err, rows) => {
+    `,
+    [
+      promotion_id,
+      event_id,
+    ],
+    (err, rows) => {
+
       if (err) {
+
         console.log(err);
-        return res.status(500).json({ message: "Lỗi server" });
+
+        return res.status(500).json({
+          message: "Lỗi server",
+        });
+
       }
 
       if (!rows.length) {
-        return res.status(400).json({ message: "Mã giảm giá không tồn tại" });
+
+        return res.status(400).json({
+          message: "Mã giảm giá không tồn tại",
+        });
+
       }
 
       promotion = rows[0];
-      const now = new Date();
-      const minOrder = Number(promotion.min_order ?? promotion.min_order_value ?? 0);
 
-      if (promotion.status && promotion.status !== "ACTIVE") {
-        return res.status(400).json({ message: "Mã giảm giá không còn hoạt động" });
-      }
+      const minOrder = Number(
+        promotion.min_order ??
+        promotion.min_order_value ??
+        0
+      );
 
-      if (promotion.start_date && new Date(promotion.start_date) > now) {
-        return res.status(400).json({ message: "Mã giảm giá chưa bắt đầu" });
-      }
 
-      if (promotion.end_date && new Date(promotion.end_date) < now) {
-        return res.status(400).json({ message: "Mã giảm giá đã hết hạn" });
-      }
+      // =========================
+      // KIỂM TRA THỜI GIAN
+      // =========================
 
-      if (promotion.quantity !== null && Number(promotion.used_count || 0) >= Number(promotion.quantity)) {
-        return res.status(400).json({ message: "Mã giảm giá đã hết lượt sử dụng" });
-      }
+      if (
+        promotion.promotion_status ===
+        "NOT_STARTED"
+      ) {
 
-      if (minOrder > 0 && originalTotal < minOrder) {
         return res.status(400).json({
-          message: `Đơn hàng phải từ ${minOrder.toLocaleString("vi-VN")}đ để sử dụng mã này`,
+          message: "Mã giảm giá chưa bắt đầu",
         });
+
       }
 
-      if (promotion.discount_type === "PERCENT") {
-        discountAmount = (originalTotal * Number(promotion.discount_value || 0)) / 100;
-      } else if (promotion.discount_type === "FIXED") {
-        discountAmount = Number(promotion.discount_value || 0);
-      } else {
-        return res.status(400).json({ message: "Mã giảm giá không hợp lệ" });
+
+      if (
+        promotion.promotion_status ===
+        "EXPIRED"
+      ) {
+
+        return res.status(400).json({
+          message: "Mã giảm giá đã hết hạn",
+        });
+
       }
 
-      if (promotion.max_discount !== null && promotion.max_discount !== undefined && discountAmount > Number(promotion.max_discount)) {
-        discountAmount = Number(promotion.max_discount);
+
+      // =========================
+      // HẾT LƯỢT
+      // =========================
+
+      if (
+        promotion.promotion_status ===
+        "SOLD_OUT"
+      ) {
+
+        return res.status(400).json({
+          message:
+            "Mã giảm giá đã hết lượt sử dụng",
+        });
+
       }
 
-      discountAmount = Math.max(0, Math.min(discountAmount, originalTotal));
-      finalTotal = originalTotal - discountAmount;
+
+      // =========================
+      // KIỂM TRA TRẠNG THÁI
+      // =========================
+
+      if (
+        promotion.status &&
+        promotion.status !== "ACTIVE"
+      ) {
+
+        return res.status(400).json({
+          message:
+            "Mã giảm giá không còn hoạt động",
+        });
+
+      }
+
+
+      // =========================
+      // GIÁ TRỊ ĐƠN TỐI THIỂU
+      // =========================
+
+      if (
+        minOrder > 0 &&
+        originalTotal < minOrder
+      ) {
+
+        return res.status(400).json({
+
+          message:
+            `Đơn hàng phải từ ${minOrder.toLocaleString(
+              "vi-VN"
+            )}đ để sử dụng mã này`,
+
+        });
+
+      }
+
+
+      // =========================
+      // TÍNH GIẢM GIÁ
+      // =========================
+
+      if (
+        promotion.discount_type ===
+        "PERCENT"
+      ) {
+
+        discountAmount =
+          (
+            originalTotal *
+            Number(
+              promotion.discount_value || 0
+            )
+          ) / 100;
+
+      }
+
+      else if (
+        promotion.discount_type ===
+        "FIXED"
+      ) {
+
+        discountAmount =
+          Number(
+            promotion.discount_value || 0
+          );
+
+      }
+
+      else {
+
+        return res.status(400).json({
+          message:
+            "Mã giảm giá không hợp lệ",
+        });
+
+      }
+
+
+      // =========================
+      // GIẢM TỐI ĐA
+      // =========================
+
+      if (
+        promotion.max_discount !== null &&
+        promotion.max_discount !== undefined &&
+        discountAmount >
+          Number(
+            promotion.max_discount
+          )
+      ) {
+
+        discountAmount =
+          Number(
+            promotion.max_discount
+          );
+
+      }
+
+
+      // =========================
+      // KHÔNG GIẢM QUÁ GIÁ ĐƠN
+      // =========================
+
+      discountAmount =
+        Math.max(
+          0,
+          Math.min(
+            discountAmount,
+            originalTotal
+          )
+        );
+
+
+      finalTotal =
+        originalTotal -
+        discountAmount;
+
+
       callback();
-    });
-  }
+
+    }
+  );
+}
 
   function checkNextSeatHold(index = 0) {
     if (index >= seatItems.length) return proceedCreateOrder();
