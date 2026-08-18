@@ -4,336 +4,580 @@ const db = require("../db");
 
 // POST /api/orders
 router.post("/", (req, res) => {
-  const { user_id, event_id, showtime_id, promotion_id, items } = req.body || {};
 
-  if (!user_id || !event_id || !Array.isArray(items) || !items.length) {
-    return res.status(400).json({ message: "Dữ liệu không hợp lệ" });
+  const {
+    user_id,
+    event_id,
+    showtime_id,
+    promotion_id,
+    items,
+  } = req.body || {};
+
+
+  // ======================================
+  // VALIDATE REQUEST
+  // ======================================
+
+  if (
+    !user_id ||
+    !event_id ||
+    !Array.isArray(items) ||
+    !items.length
+  ) {
+
+    return res.status(400).json({
+      message: "Dữ liệu không hợp lệ",
+    });
+
   }
+
+
+  // ======================================
+  // VALIDATE ITEMS
+  // ======================================
 
   const hasInvalidItem = items.some((item) => {
-    const quantity = Number(item && item.quantity);
-    const price = Number(item && item.price);
-    return !item || !Number.isFinite(quantity) || !Number.isFinite(price) || quantity <= 0 || price < 0;
+
+    const quantity =
+      Number(item && item.quantity);
+
+    const price =
+      Number(item && item.price);
+
+    return (
+      !item ||
+      !Number.isFinite(quantity) ||
+      !Number.isFinite(price) ||
+      quantity <= 0 ||
+      price < 0
+    );
+
   });
 
+
   if (hasInvalidItem) {
-    return res.status(400).json({ message: "Dữ liệu không hợp lệ" });
+
+    return res.status(400).json({
+      message: "Dữ liệu không hợp lệ",
+    });
+
   }
 
-  const originalTotal = items.reduce((sum, item) => sum + Number(item.quantity) * Number(item.price), 0);
-  const hasPromotion = promotion_id !== undefined && promotion_id !== null && promotion_id !== "";
-  const seatItems = items.filter((item) => item.seat_id);
+
+  // ======================================
+  // TÍNH TỔNG TIỀN GỐC
+  // ======================================
+
+  const originalTotal =
+    items.reduce(
+      (sum, item) =>
+        sum +
+        Number(item.quantity) *
+        Number(item.price),
+      0
+    );
+
+
+  // ======================================
+  // KIỂM TRA CÓ PROMOTION KHÔNG
+  // ======================================
+
+  const hasPromotion =
+    promotion_id !== undefined &&
+    promotion_id !== null &&
+    promotion_id !== "";
+
+
+  // ======================================
+  // LẤY CÁC ITEM GHẾ
+  // ======================================
+
+  const seatItems =
+    items.filter(
+      (item) => item.seat_id
+    );
+
+
   let promotion = null;
+
   let discountAmount = 0;
-  let finalTotal = originalTotal;
+
+  let finalTotal =
+    originalTotal;
+
+
+  // ======================================
+  // VALIDATE PROMOTION
+  // ======================================
 
   function validatePromotion(callback) {
-  if (!hasPromotion) return callback();
 
-  db.query(
-    `
-    SELECT
-      *,
-      CASE
-        WHEN start_date > NOW()
-          THEN 'NOT_STARTED'
+    // Không có mã giảm giá
+    if (!hasPromotion) {
 
-        WHEN end_date < NOW()
-          THEN 'EXPIRED'
+      return callback();
 
-        WHEN quantity IS NOT NULL
-          AND used_count >= quantity
-          THEN 'SOLD_OUT'
-
-        ELSE 'ACTIVE'
-      END AS promotion_status
-
-    FROM promotions
-
-    WHERE id = ?
-
-    AND (
-      event_id IS NULL
-      OR event_id = ?
-    )
-    `,
-    [
-      promotion_id,
-      event_id,
-    ],
-    (err, rows) => {
-
-      if (err) {
-
-        console.log(err);
-
-        return res.status(500).json({
-          message: "Lỗi server",
-        });
-
-      }
-
-      if (!rows.length) {
-
-        return res.status(400).json({
-          message: "Mã giảm giá không tồn tại",
-        });
-
-      }
-
-      promotion = rows[0];
-
-      const minOrder = Number(
-        promotion.min_order ??
-        promotion.min_order_value ??
-        0
-      );
+    }
 
 
-      // =========================
-      // KIỂM TRA THỜI GIAN
-      // =========================
+    db.query(
+      `
+        SELECT
+          *,
+          CASE
 
-      if (
-        promotion.promotion_status ===
-        "NOT_STARTED"
-      ) {
+            WHEN start_date > NOW()
+              THEN 'NOT_STARTED'
 
-        return res.status(400).json({
-          message: "Mã giảm giá chưa bắt đầu",
-        });
+            WHEN end_date < NOW()
+              THEN 'EXPIRED'
 
-      }
+            WHEN quantity IS NOT NULL
+              AND used_count >= quantity
+              THEN 'SOLD_OUT'
 
+            ELSE 'ACTIVE'
 
-      if (
-        promotion.promotion_status ===
-        "EXPIRED"
-      ) {
+          END AS promotion_status
 
-        return res.status(400).json({
-          message: "Mã giảm giá đã hết hạn",
-        });
+        FROM promotions
 
-      }
+        WHERE id = ?
 
+        AND (
+          event_id IS NULL
+          OR event_id = ?
+        )
+      `,
+      [
+        promotion_id,
+        event_id,
+      ],
+      (err, rows) => {
 
-      // =========================
-      // HẾT LƯỢT
-      // =========================
+        if (err) {
 
-      if (
-        promotion.promotion_status ===
-        "SOLD_OUT"
-      ) {
+          console.log(err);
 
-        return res.status(400).json({
-          message:
-            "Mã giảm giá đã hết lượt sử dụng",
-        });
+          return res.status(500).json({
+            message: "Lỗi server",
+          });
 
-      }
-
-
-      // =========================
-      // KIỂM TRA TRẠNG THÁI
-      // =========================
-
-      if (
-        promotion.status &&
-        promotion.status !== "ACTIVE"
-      ) {
-
-        return res.status(400).json({
-          message:
-            "Mã giảm giá không còn hoạt động",
-        });
-
-      }
+        }
 
 
-      // =========================
-      // GIÁ TRỊ ĐƠN TỐI THIỂU
-      // =========================
+        // ======================================
+        // KHÔNG TÌM THẤY PROMOTION
+        // ======================================
 
-      if (
-        minOrder > 0 &&
-        originalTotal < minOrder
-      ) {
+        if (!rows.length) {
 
-        return res.status(400).json({
+          return res.status(400).json({
+            message:
+              "Mã giảm giá không tồn tại",
+          });
 
-          message:
-            `Đơn hàng phải từ ${minOrder.toLocaleString(
-              "vi-VN"
-            )}đ để sử dụng mã này`,
-
-        });
-
-      }
+        }
 
 
-      // =========================
-      // TÍNH GIẢM GIÁ
-      // =========================
+        promotion =
+          rows[0];
 
-      if (
-        promotion.discount_type ===
-        "PERCENT"
-      ) {
 
-        discountAmount =
-          (
-            originalTotal *
+        const minOrder =
+          Number(
+            promotion.min_order ??
+            promotion.min_order_value ??
+            0
+          );
+
+
+        // ======================================
+        // KIỂM TRA THỜI GIAN
+        // ======================================
+
+        if (
+          promotion.promotion_status ===
+          "NOT_STARTED"
+        ) {
+
+          return res.status(400).json({
+            message:
+              "Mã giảm giá chưa bắt đầu",
+          });
+
+        }
+
+
+        if (
+          promotion.promotion_status ===
+          "EXPIRED"
+        ) {
+
+          return res.status(400).json({
+            message:
+              "Mã giảm giá đã hết hạn",
+          });
+
+        }
+
+
+        // ======================================
+        // KIỂM TRA HẾT LƯỢT
+        // ======================================
+
+        if (
+          promotion.promotion_status ===
+          "SOLD_OUT"
+        ) {
+
+          return res.status(400).json({
+            message:
+              "Mã giảm giá đã hết lượt sử dụng",
+          });
+
+        }
+
+
+        // ======================================
+        // KIỂM TRA STATUS
+        // ======================================
+
+        if (
+          promotion.status &&
+          promotion.status !== "ACTIVE"
+        ) {
+
+          return res.status(400).json({
+            message:
+              "Mã giảm giá không còn hoạt động",
+          });
+
+        }
+
+
+        // ======================================
+        // KIỂM TRA GIÁ TRỊ ĐƠN TỐI THIỂU
+        // ======================================
+
+        if (
+          minOrder > 0 &&
+          originalTotal < minOrder
+        ) {
+
+          return res.status(400).json({
+
+            message:
+              `Đơn hàng phải từ ${minOrder.toLocaleString(
+                "vi-VN"
+              )}đ để sử dụng mã này`,
+
+          });
+
+        }
+
+
+        // ======================================
+        // TÍNH DISCOUNT
+        // ======================================
+
+        if (
+          promotion.discount_type ===
+          "PERCENT"
+        ) {
+
+          discountAmount =
+            (
+              originalTotal *
+              Number(
+                promotion.discount_value || 0
+              )
+            ) / 100;
+
+        }
+
+        else if (
+          promotion.discount_type ===
+          "FIXED"
+        ) {
+
+          discountAmount =
             Number(
               promotion.discount_value || 0
+            );
+
+        }
+
+        else {
+
+          return res.status(400).json({
+            message:
+              "Mã giảm giá không hợp lệ",
+          });
+
+        }
+
+
+        // ======================================
+        // GIẢM TỐI ĐA
+        // ======================================
+
+        if (
+          promotion.max_discount !== null &&
+          promotion.max_discount !== undefined &&
+          discountAmount >
+            Number(
+              promotion.max_discount
             )
-          ) / 100;
+        ) {
 
-      }
+          discountAmount =
+            Number(
+              promotion.max_discount
+            );
 
-      else if (
-        promotion.discount_type ===
-        "FIXED"
-      ) {
-
-        discountAmount =
-          Number(
-            promotion.discount_value || 0
-          );
-
-      }
-
-      else {
-
-        return res.status(400).json({
-          message:
-            "Mã giảm giá không hợp lệ",
-        });
-
-      }
+        }
 
 
-      // =========================
-      // GIẢM TỐI ĐA
-      // =========================
-
-      if (
-        promotion.max_discount !== null &&
-        promotion.max_discount !== undefined &&
-        discountAmount >
-          Number(
-            promotion.max_discount
-          )
-      ) {
+        // ======================================
+        // KHÔNG GIẢM QUÁ GIÁ ĐƠN
+        // ======================================
 
         discountAmount =
-          Number(
-            promotion.max_discount
+          Math.max(
+            0,
+            Math.min(
+              discountAmount,
+              originalTotal
+            )
           );
 
+
+        // ======================================
+        // GIÁ CUỐI
+        // ======================================
+
+        finalTotal =
+          originalTotal -
+          discountAmount;
+
+
+        callback();
+
       }
+    );
+
+  }
 
 
-      // =========================
-      // KHÔNG GIẢM QUÁ GIÁ ĐƠN
-      // =========================
-
-      discountAmount =
-        Math.max(
-          0,
-          Math.min(
-            discountAmount,
-            originalTotal
-          )
-        );
-
-
-      finalTotal =
-        originalTotal -
-        discountAmount;
-
-
-      callback();
-
-    }
-  );
-}
+  // ======================================
+  // KIỂM TRA GHẾ ĐANG ĐƯỢC HOLD
+  // ======================================
 
   function checkNextSeatHold(index = 0) {
-    if (index >= seatItems.length) return proceedCreateOrder();
 
-    const item = seatItems[index];
-    const itemShowtimeId = item.showtime_id || showtime_id;
-    if (!itemShowtimeId) {
-      return res.status(400).json({ message: "Missing showtime_id for selected seat" });
+    // Đã kiểm tra hết ghế
+    if (
+      index >= seatItems.length
+    ) {
+
+      return proceedCreateOrder();
+
     }
+
+
+    const item =
+      seatItems[index];
+
+
+    const itemShowtimeId =
+      item.showtime_id ||
+      showtime_id;
+
+
+    if (!itemShowtimeId) {
+
+      return res.status(400).json({
+        message:
+          "Missing showtime_id for selected seat",
+      });
+
+    }
+
 
     db.query(
       `
         SELECT *
         FROM ticket_holds
+
         WHERE seat_id = ?
-          AND showtime_id = ?
-          AND status = 'ACTIVE'
-          AND expires_at > NOW()
-          AND user_id <> ?
+
+        AND showtime_id = ?
+
+        AND status = 'ACTIVE'
+
+        AND expires_at > NOW()
+
+        AND user_id <> ?
       `,
-      [item.seat_id, itemShowtimeId, user_id],
+      [
+        item.seat_id,
+        itemShowtimeId,
+        user_id,
+      ],
       (err, rows) => {
+
         if (err) {
+
           console.log(err);
-          return res.status(500).json({ message: "Lỗi server" });
-        }
 
-        if (rows.length) {
-          return res.status(409).json({
-            message: "Một hoặc nhiều ghế đang được người khác giữ",
+          return res.status(500).json({
+            message: "Lỗi server",
           });
+
         }
 
-        checkNextSeatHold(index + 1);
+
+        // Ghế đang được người khác giữ
+        if (rows.length) {
+
+          return res.status(409).json({
+
+            message:
+              "Một hoặc nhiều ghế đang được người khác giữ",
+
+          });
+
+        }
+
+
+        // Kiểm tra ghế tiếp theo
+        checkNextSeatHold(
+          index + 1
+        );
+
       }
     );
+
   }
 
+
+  // ======================================
+  // TẠO ORDER
+  // ======================================
+
   function proceedCreateOrder() {
-    db.beginTransaction((txErr) => {
-      if (txErr) {
-        console.log(txErr);
-        return res.status(500).json({ message: "Lỗi server" });
-      }
 
-      function rollbackAndRespond(status, payload) {
-        return db.rollback(() => res.status(status).json(payload));
-      }
+    db.beginTransaction(
+      (txErr) => {
 
-      function createOrder() {
-        const insertOrderSql = `
-          INSERT INTO orders
-          (user_id, event_id, showtime_id, promotion_id, total_price, status)
-          VALUES (?, ?, ?, ?, ?, 'PENDING')
-        `;
+        if (txErr) {
 
-        db.query(
-          insertOrderSql,
-          [user_id, event_id, showtime_id, hasPromotion ? promotion.id : null, finalTotal],
-          (err, result) => {
-            if (err) {
-              console.log(err);
-              return rollbackAndRespond(500, { message: "Lỗi server" });
+          console.log(txErr);
+
+          return res.status(500).json({
+            message: "Lỗi server",
+          });
+
+        }
+
+
+        // ======================================
+        // ROLLBACK + RESPONSE
+        // ======================================
+
+        function rollbackAndRespond(
+          status,
+          payload
+        ) {
+
+          return db.rollback(
+            () => {
+
+              res
+                .status(status)
+                .json(payload);
+
             }
+          );
 
-            insertOrderItems(result.insertId, 0);
-          }
-        );
-      }
+        }
 
-      function insertOrderItems(orderId, index) {
-        if (index >= items.length) {
 
-  if (!hasPromotion) {
-    
+        // ======================================
+        // INSERT ORDER
+        // ======================================
+
+        function createOrder() {
+
+          const insertOrderSql = `
+
+            INSERT INTO orders
+
+            (
+              user_id,
+              event_id,
+              showtime_id,
+              promotion_id,
+              total_price,
+              status
+            )
+
+            VALUES (?, ?, ?, ?, ?, 'PENDING')
+
+          `;
+
+
+          db.query(
+            insertOrderSql,
+            [
+              user_id,
+              event_id,
+              showtime_id,
+
+              hasPromotion
+                ? promotion.id
+                : null,
+
+              finalTotal,
+            ],
+            (err, result) => {
+
+              if (err) {
+
+                console.log(err);
+
+                return rollbackAndRespond(
+                  500,
+                  {
+                    message:
+                      "Lỗi server",
+                  }
+                );
+
+              }
+
+
+              // Sau khi tạo order
+              // bắt đầu insert order_items
+
+              insertOrderItems(
+                result.insertId,
+                0
+              );
+
+            }
+          );
+
+        }
+
+
+        // ======================================
+        // INSERT ORDER ITEMS
+        // ======================================
+function insertOrderItems(orderId, index) {
+
+  if (index >= items.length) {
 
     return db.commit((commitErr) => {
 
@@ -350,7 +594,9 @@ router.post("/", (req, res) => {
       return res.json({
 
         order_id: orderId,
+
         total_price: finalTotal,
+
         discount: discountAmount,
 
       });
@@ -359,40 +605,109 @@ router.post("/", (req, res) => {
 
   }
 
-}
-        const item = items[index];
-        const insertItemSql = `
-          INSERT INTO order_items
-          (order_id, showtime_id, zone_id, seat_id, quantity, price)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `;
+  const item = items[index];
 
-        db.query(
-          insertItemSql,
-          [
-            orderId,
-            item.showtime_id || showtime_id,
-            item.zone_id || null,
-            item.seat_id || null,
-            Number(item.quantity),
-            Number(item.price),
-          ],
-          (itemErr) => {
-            if (itemErr) {
-              console.log(itemErr);
-              return rollbackAndRespond(500, { message: "Lỗi server" });
-            }
+  // Kiểm tra item
+  if (!item) {
 
-            insertOrderItems(orderId, index + 1);
-          }
-        );
-      }
-
-      createOrder();
+    return rollbackAndRespond(400, {
+      message: "Dữ liệu vé không hợp lệ",
     });
+
   }
 
-  validatePromotion(() => checkNextSeatHold());
+  const itemShowtimeId =
+    item.showtime_id || showtime_id;
+
+  if (!itemShowtimeId) {
+
+    return rollbackAndRespond(400, {
+      message: "Thiếu showtime_id",
+    });
+
+  }
+
+  const insertItemSql = `
+    INSERT INTO order_items
+    (
+      order_id,
+      showtime_id,
+      zone_id,
+      seat_id,
+      quantity,
+      price
+    )
+    VALUES (?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(
+
+    insertItemSql,
+
+    [
+      orderId,
+
+      itemShowtimeId,
+
+      item.zone_id || null,
+
+      item.seat_id || null,
+
+      Number(item.quantity),
+
+      Number(item.price),
+
+    ],
+
+    (itemErr) => {
+
+      if (itemErr) {
+
+        console.log(itemErr);
+
+        return rollbackAndRespond(500, {
+          message: "Lỗi server",
+        });
+
+      }
+
+      insertOrderItems(
+        orderId,
+        index + 1
+      );
+
+    }
+
+  );
+
+}
+
+
+
+        // ======================================
+        // START
+        // ======================================
+
+        createOrder();
+
+      }
+    );
+
+  }
+
+
+  // ======================================
+  // START VALIDATION
+  // ======================================
+
+  validatePromotion(
+    () => {
+
+      checkNextSeatHold();
+
+    }
+  );
+
 });
 // GET /api/orders/:id
 router.get("/:id", (req, res) => {
