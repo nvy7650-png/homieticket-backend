@@ -1,32 +1,28 @@
 const express = require("express");
-
 const router = express.Router();
-
 const db = require("../db");
 
-// GET CATEGORIES
+// =============================
+// Lấy danh sách danh mục
+// =============================
 router.get("/", (req, res) => {
 
   const sql =
     "SELECT * FROM categories";
 
   db.query(sql, (err, results) => {
-
     if (err) {
-
       return res
         .status(500)
         .json(err);
-
     }
-
     res.json(results);
-
   });
-
 });
 
-// UPDATE CATEGORY
+// =============================
+// Cập nhật danh mục
+// =============================
 router.put("/:id", (req, res) => {
 
   const { name, description } = req.body;
@@ -71,24 +67,21 @@ if (!name || !name.trim()) {
         sql,
         [name.trim(), description, req.params.id],
         (err) => {
-
           if (err) {
             return res.status(500).json(err);
           }
-
           res.json({
             message: "Cập nhật danh mục thành công"
           });
-
         }
       );
-
     }
   );
-
 });
 
-// CREATE CATEGORY
+// =============================
+// Tạo danh mục
+// =============================
 router.post("/", (req, res) => {
 
   const { name, description } = req.body;
@@ -146,7 +139,10 @@ router.post("/", (req, res) => {
   );
 
 });
-// DELETE CATEGORY
+
+// =============================
+// Xóa danh mục
+// =============================
 router.delete("/:id", (req, res) => {
 
   const checkSql = `
@@ -194,4 +190,5 @@ router.delete("/:id", (req, res) => {
   );
 
 });
+
 module.exports = router;
