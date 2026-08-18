@@ -111,6 +111,7 @@ router.post(
 
    
 let status = "INACTIVE";
+const now = new Date();
 
 if (
   now >= new Date(start_date) &&
