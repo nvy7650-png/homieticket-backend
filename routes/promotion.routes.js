@@ -785,7 +785,8 @@ router.post(
     }
 
     const sql = `
-      SELECT *,
+      SELECT
+        *,
         CASE
           WHEN start_date > NOW()
             THEN 'NOT_STARTED'
@@ -801,7 +802,7 @@ router.post(
 
       FROM promotions
 
-      WHERE UPPER(code) = UPPER(?)
+      WHERE code = ?
 
       AND (
         event_id IS NULL
@@ -812,7 +813,7 @@ router.post(
     db.query(
       sql,
       [
-        code.trim(),
+        code.trim().toUpperCase(),
         event_id,
       ],
       (err, rows) => {
@@ -828,6 +829,10 @@ router.post(
 
         }
 
+        // =========================
+        // KHÔNG TÌM THẤY MÃ
+        // =========================
+
         if (!rows.length) {
 
           return res.status(404).json({
@@ -839,9 +844,9 @@ router.post(
 
         const promo = rows[0];
 
-        // =======================
-        // KIỂM TRA THỜI GIAN
-        // =======================
+        // =========================
+        // KIỂM TRA TRẠNG THÁI
+        // =========================
 
         if (
           promo.promotion_status ===
@@ -850,7 +855,7 @@ router.post(
 
           return res.status(400).json({
             success: false,
-            message: "Mã chưa bắt đầu.",
+            message: "Mã giảm giá chưa bắt đầu.",
           });
 
         }
@@ -867,10 +872,6 @@ router.post(
 
         }
 
-        // =======================
-        // HẾT LƯỢT
-        // =======================
-
         if (
           promo.promotion_status ===
           "SOLD_OUT"
@@ -878,15 +879,14 @@ router.post(
 
           return res.status(400).json({
             success: false,
-            message:
-              "Mã đã hết lượt sử dụng.",
+            message: "Mã đã hết lượt sử dụng.",
           });
 
         }
 
-        // =======================
+        // =========================
         // MIN ORDER
-        // =======================
+        // =========================
 
         if (
           Number(total_price) <
@@ -901,9 +901,9 @@ router.post(
 
         }
 
-        // =======================
+        // =========================
         // TÍNH GIẢM GIÁ
-        // =======================
+        // =========================
 
         let discount = 0;
 
@@ -916,6 +916,8 @@ router.post(
             Number(total_price) *
             Number(promo.discount_value) /
             100;
+
+          // GIẢM TỐI ĐA
 
           if (
             promo.max_discount &&
@@ -930,12 +932,15 @@ router.post(
 
         } else {
 
+          // GIẢM TIỀN MẶT
+
           discount =
             Number(promo.discount_value);
 
         }
 
-        // Không giảm quá tổng tiền
+        // Không cho giảm quá giá trị đơn
+
         if (
           discount >
           Number(total_price)
@@ -950,16 +955,19 @@ router.post(
           Number(total_price) -
           discount;
 
+        // =========================
+        // TRẢ KẾT QUẢ
+        // =========================
+
         return res.json({
 
           success: true,
 
           promotion: promo,
 
-          discount,
+          discount: discount,
 
-          final_price:
-            finalPrice,
+          final_price: finalPrice,
 
         });
 
