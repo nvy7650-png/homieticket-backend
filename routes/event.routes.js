@@ -524,77 +524,223 @@ router.get(
   "/organizer/:id/stats",
   (req, res) => {
 
-    const organizerId =
-      req.params.id;
+    const organizerId = req.params.id;
 
-    const sql = `
-SELECT
+    const totalEventsSql = `
+      SELECT COUNT(*) AS total
+      FROM events
+      WHERE organizer_id = ?
+    `;
 
-  (
-    SELECT COUNT(*)
-    FROM events
-    WHERE organizer_id = ?
-  ) AS totalEvents,
+    const totalTicketsSql = `
+      SELECT COUNT(*) AS total
+      FROM tickets t
+      INNER JOIN events e
+        ON t.event_id = e.id
+      WHERE e.organizer_id = ?
+    `;
 
-  (
-    SELECT COUNT(*)
-    FROM tickets t
-    JOIN events e
-    ON e.id = t.event_id
-    WHERE e.organizer_id = ?
-  ) AS totalTickets,
+    const revenueSql = `
+      SELECT COALESCE(SUM(o.total_price), 0) AS total
+      FROM orders o
+      INNER JOIN events e
+        ON o.event_id = e.id
+      WHERE e.organizer_id = ?
+        AND o.status = 'PAID'
+    `;
 
-  (
-    SELECT COALESCE(
-      SUM(o.total_price),
-      0
-    )
-    FROM orders o
-    JOIN events e
-    ON e.id = o.event_id
-    WHERE e.organizer_id = ?
-    AND o.status = 'PAID'
-  ) AS revenue
-`;
+    const checkedInSql = `
+      SELECT COUNT(*) AS total
+      FROM tickets t
+      INNER JOIN events e
+        ON t.event_id = e.id
+      WHERE e.organizer_id = ?
+        AND t.status = 'USED'
+    `;
 
-   db.query(
-  sql,
-  [
-    organizerId,
-    organizerId,
-    organizerId
-  ],
-      (err, rows) => {
+    const eventRevenueSql = `
+      SELECT
+        e.id,
+        e.title,
+        COALESCE(
+          SUM(
+            CASE
+              WHEN o.status = 'PAID'
+              THEN o.total_price
+              ELSE 0
+            END
+          ),
+          0
+        ) AS revenue
+      FROM events e
+      LEFT JOIN orders o
+        ON o.event_id = e.id
+      WHERE e.organizer_id = ?
+      GROUP BY e.id, e.title
+      ORDER BY revenue DESC
+      LIMIT 5
+    `;
 
-        if (err) {
+    const eventTicketsSql = `
+      SELECT
+        e.id,
+        e.title,
+        COUNT(t.id) AS tickets
+      FROM events e
+      LEFT JOIN tickets t
+        ON t.event_id = e.id
+      WHERE e.organizer_id = ?
+      GROUP BY e.id, e.title
+      ORDER BY tickets DESC
+      LIMIT 5
+    `;
 
-          console.log(err);
+    db.query(
+      totalEventsSql,
+      [organizerId],
+      (err1, eventsResult) => {
+
+        if (err1) {
+          console.log(err1);
 
           return res.status(500).json({
-            message: "Lỗi server",
+            message: "Lỗi lấy tổng sự kiện",
           });
-
         }
 
-        res.json({
+        db.query(
+          totalTicketsSql,
+          [organizerId],
+          (err2, ticketsResult) => {
 
-          totalEvents:
-            rows[0].totalEvents || 0,
+            if (err2) {
+              console.log(err2);
 
-          totalTickets:
-            rows[0].totalTickets || 0,
+              return res.status(500).json({
+                message: "Lỗi lấy tổng vé",
+              });
+            }
 
-          revenue:
-            rows[0].revenue || 0,
+            db.query(
+              revenueSql,
+              [organizerId],
+              (err3, revenueResult) => {
 
-        });
+                if (err3) {
+                  console.log(err3);
+
+                  return res.status(500).json({
+                    message: "Lỗi lấy doanh thu",
+                  });
+                }
+
+                db.query(
+                  checkedInSql,
+                  [organizerId],
+                  (err4, checkedInResult) => {
+
+                    if (err4) {
+                      console.log(err4);
+
+                      return res.status(500).json({
+                        message: "Lỗi lấy check-in",
+                      });
+                    }
+
+                    db.query(
+                      eventRevenueSql,
+                      [organizerId],
+                      (err5, eventRevenueResult) => {
+
+                        if (err5) {
+                          console.log(err5);
+
+                          return res.status(500).json({
+                            message: "Lỗi lấy doanh thu theo sự kiện",
+                          });
+                        }
+
+                        db.query(
+                          eventTicketsSql,
+                          [organizerId],
+                          (err6, eventTicketsResult) => {
+
+                            if (err6) {
+                              console.log(err6);
+
+                              return res.status(500).json({
+                                message: "Lỗi lấy vé theo sự kiện",
+                              });
+                            }
+
+                            res.json({
+
+                              totalEvents:
+                                Number(
+                                  eventsResult[0]?.total || 0
+                                ),
+
+                              totalTickets:
+                                Number(
+                                  ticketsResult[0]?.total || 0
+                                ),
+
+                              revenue:
+                                Number(
+                                  revenueResult[0]?.total || 0
+                                ),
+
+                              checkedIn:
+                                Number(
+                                  checkedInResult[0]?.total || 0
+                                ),
+
+                              eventRevenue:
+                                eventRevenueResult.map(
+                                  (item) => ({
+                                    id: item.id,
+                                    title: item.title,
+                                    revenue:
+                                      Number(
+                                        item.revenue || 0
+                                      ),
+                                  })
+                                ),
+
+                              eventTickets:
+                                eventTicketsResult.map(
+                                  (item) => ({
+                                    id: item.id,
+                                    title: item.title,
+                                    tickets:
+                                      Number(
+                                        item.tickets || 0
+                                      ),
+                                  })
+                                ),
+
+                            });
+
+                          }
+                        );
+
+                      }
+                    );
+
+                  }
+                );
+
+              }
+            );
+
+          }
+        );
 
       }
     );
 
   }
 );
-
 
 // ============================
 // GET EVENT SEATS
