@@ -754,11 +754,25 @@ router.post(
     } = req.body;
 
     db.query(
-
       `
-      SELECT *
+      SELECT *,
+        CASE
+          WHEN start_date > NOW()
+            THEN 'NOT_STARTED'
+
+          WHEN end_date < NOW()
+            THEN 'EXPIRED'
+
+          WHEN used_count >= quantity
+            THEN 'SOLD_OUT'
+
+          ELSE 'ACTIVE'
+        END AS promotion_status
+
       FROM promotions
+
       WHERE code = ?
+
       AND (
         event_id IS NULL
         OR event_id = ?
@@ -781,9 +795,9 @@ router.post(
 
           return res.status(500).json({
 
-            success:false,
+            success: false,
 
-            message:"Server error",
+            message: "Server error",
 
           });
 
@@ -793,9 +807,9 @@ router.post(
 
           return res.status(404).json({
 
-            success:false,
+            success: false,
 
-            message:"Mã không tồn tại.",
+            message: "Mã không tồn tại.",
 
           });
 
@@ -804,81 +818,58 @@ router.post(
         const promo =
           rows[0];
 
-        const now = new Date(
-  new Date().toLocaleString("en-US", {
-    timeZone: "Asia/Ho_Chi_Minh",
-  })
-);
-console.log("NOW:", now);
-console.log("START:", new Date(promo.start_date));
-console.log("END:", new Date(promo.end_date));
 
         // =======================
-        // HẾT HẠN
+        // KIỂM TRA TRẠNG THÁI
         // =======================
 
         if (
-
-          now >
-          new Date(
-            promo.end_date
-          )
-
+          promo.promotion_status ===
+          "EXPIRED"
         ) {
 
           return res.status(400).json({
 
-            success:false,
+            success: false,
 
-            message:"Mã đã hết hạn.",
+            message: "Mã đã hết hạn.",
 
           });
 
         }
 
-        // =======================
-        // CHƯA BẮT ĐẦU
-        // =======================
 
         if (
-
-          now <
-          new Date(
-            promo.start_date
-          )
-
+          promo.promotion_status ===
+          "NOT_STARTED"
         ) {
 
           return res.status(400).json({
 
-            success:false,
+            success: false,
 
-            message:"Mã chưa bắt đầu.",
+            message: "Mã chưa bắt đầu.",
 
           });
 
         }
 
-        // =======================
-        // HẾT LƯỢT
-        // =======================
 
         if (
-
-          promo.used_count >=
-          promo.quantity
-
+          promo.promotion_status ===
+          "SOLD_OUT"
         ) {
 
           return res.status(400).json({
 
-            success:false,
+            success: false,
 
-            message:"Mã đã hết lượt sử dụng.",
+            message: "Mã đã hết lượt sử dụng.",
 
           });
 
         }
+
 
         // =======================
         // MIN ORDER
@@ -887,6 +878,7 @@ console.log("END:", new Date(promo.end_date));
         if (
 
           Number(total_price) <
+
           Number(
             promo.min_order_value
           )
@@ -895,7 +887,7 @@ console.log("END:", new Date(promo.end_date));
 
           return res.status(400).json({
 
-            success:false,
+            success: false,
 
             message:
               "Đơn hàng chưa đạt giá trị tối thiểu.",
@@ -904,11 +896,13 @@ console.log("END:", new Date(promo.end_date));
 
         }
 
+
         // =======================
         // DISCOUNT
         // =======================
 
         let discount = 0;
+
 
         if (
 
@@ -924,13 +918,13 @@ console.log("END:", new Date(promo.end_date));
               promo.discount_value
             ) / 100;
 
+
           if (
 
             promo.max_discount &&
 
             discount >
-
-            promo.max_discount
+            Number(promo.max_discount)
 
           ) {
 
@@ -952,23 +946,33 @@ console.log("END:", new Date(promo.end_date));
 
         }
 
+
+        // =======================
+        // KHÔNG GIẢM QUÁ TỔNG ĐƠN
+        // =======================
+
         if (
 
           discount >
-          total_price
+          Number(total_price)
 
         ) {
 
           discount =
-            total_price;
+            Number(total_price);
 
         }
 
+
+        // =======================
+        // RESPONSE
+        // =======================
+
         return res.json({
 
-          success:true,
+          success: true,
 
-          promotion:promo,
+          promotion: promo,
 
           discount,
 
@@ -987,7 +991,6 @@ console.log("END:", new Date(promo.end_date));
   }
 
 );
-
 // ======================================
 // GET PROMOTIONS BY EVENT
 // ======================================
