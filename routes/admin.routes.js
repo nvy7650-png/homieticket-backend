@@ -308,7 +308,12 @@ router.get("/revenue", (req, res) => {
       p.status,
       p.paid_at,
 
-      e.title AS event_title
+      e.id AS event_id,
+      e.title AS event_title,
+
+      u.id AS organizer_id,
+      u.name AS organizer_name,
+      u.email AS organizer_email
 
     FROM payments p
 
@@ -317,6 +322,9 @@ router.get("/revenue", (req, res) => {
 
     LEFT JOIN events e
       ON o.event_id = e.id
+
+    LEFT JOIN users u
+      ON e.organizer_id = u.id
 
     WHERE p.status = 'SUCCESS'
 
@@ -327,7 +335,7 @@ router.get("/revenue", (req, res) => {
 
     if (err) {
 
-      console.log(err);
+      console.log("GET REVENUE ERROR:", err);
 
       return res.status(500).json({
         message: "Lỗi server",
