@@ -744,18 +744,22 @@ router.post(
   (req, res) => {
 
     const {
-
       code,
-
       total_price,
-
       event_id,
-
     } = req.body;
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập mã giảm giá.",
+      });
+    }
 
     db.query(
       `
-      SELECT *,
+      SELECT
+        *,
         CASE
           WHEN start_date > NOW()
             THEN 'NOT_STARTED'
@@ -780,11 +784,8 @@ router.post(
       `,
 
       [
-
         code.trim().toUpperCase(),
-
         event_id,
-
       ],
 
       (err, rows) => {
@@ -794,11 +795,8 @@ router.post(
           console.log(err);
 
           return res.status(500).json({
-
             success: false,
-
             message: "Server error",
-
           });
 
         }
@@ -806,38 +804,17 @@ router.post(
         if (!rows.length) {
 
           return res.status(404).json({
-
             success: false,
-
             message: "Mã không tồn tại.",
-
           });
 
         }
 
-        const promo =
-          rows[0];
+        const promo = rows[0];
 
-
-        // =======================
-        // KIỂM TRA TRẠNG THÁI
-        // =======================
-
-        if (
-          promo.promotion_status ===
-          "EXPIRED"
-        ) {
-
-          return res.status(400).json({
-
-            success: false,
-
-            message: "Mã đã hết hạn.",
-
-          });
-
-        }
-
+        // ==========================
+        // KIỂM TRA THỜI GIAN
+        // ==========================
 
         if (
           promo.promotion_status ===
@@ -845,15 +822,27 @@ router.post(
         ) {
 
           return res.status(400).json({
-
             success: false,
-
             message: "Mã chưa bắt đầu.",
-
           });
 
         }
 
+        if (
+          promo.promotion_status ===
+          "EXPIRED"
+        ) {
+
+          return res.status(400).json({
+            success: false,
+            message: "Mã đã hết hạn.",
+          });
+
+        }
+
+        // ==========================
+        // HẾT LƯỢT
+        // ==========================
 
         if (
           promo.promotion_status ===
@@ -861,101 +850,68 @@ router.post(
         ) {
 
           return res.status(400).json({
-
             success: false,
-
             message: "Mã đã hết lượt sử dụng.",
-
           });
 
         }
 
-
-        // =======================
+        // ==========================
         // MIN ORDER
-        // =======================
+        // ==========================
 
         if (
-
           Number(total_price) <
-
-          Number(
-            promo.min_order_value
-          )
-
+          Number(promo.min_order_value || 0)
         ) {
 
           return res.status(400).json({
-
             success: false,
-
             message:
               "Đơn hàng chưa đạt giá trị tối thiểu.",
-
           });
 
         }
 
-
-        // =======================
-        // DISCOUNT
-        // =======================
+        // ==========================
+        // TÍNH GIẢM GIÁ
+        // ==========================
 
         let discount = 0;
 
-
         if (
-
           promo.discount_type ===
           "PERCENT"
-
         ) {
 
           discount =
             Number(total_price) *
-
-            Number(
-              promo.discount_value
-            ) / 100;
-
+            Number(promo.discount_value) /
+            100;
 
           if (
-
             promo.max_discount &&
-
             discount >
             Number(promo.max_discount)
-
           ) {
 
             discount =
-              Number(
-                promo.max_discount
-              );
+              Number(promo.max_discount);
 
           }
 
-        }
-
-        else {
+        } else {
 
           discount =
-            Number(
-              promo.discount_value
-            );
+            Number(promo.discount_value);
 
         }
 
-
-        // =======================
-        // KHÔNG GIẢM QUÁ TỔNG ĐƠN
-        // =======================
+        // Không cho giảm quá giá trị đơn
 
         if (
-
           discount >
           Number(total_price)
-
         ) {
 
           discount =
@@ -963,10 +919,9 @@ router.post(
 
         }
 
-
-        // =======================
-        // RESPONSE
-        // =======================
+        const finalPrice =
+          Number(total_price) -
+          Number(discount);
 
         return res.json({
 
@@ -974,13 +929,9 @@ router.post(
 
           promotion: promo,
 
-          discount,
+          discount: discount,
 
-          final_price:
-
-            Number(total_price) -
-
-            discount,
+          final_price: finalPrice,
 
         });
 
@@ -991,6 +942,7 @@ router.post(
   }
 
 );
+
 // ======================================
 // GET PROMOTIONS BY EVENT
 // ======================================
