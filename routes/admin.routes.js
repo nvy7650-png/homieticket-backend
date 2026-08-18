@@ -5,7 +5,6 @@ const db = require("../db");
 // ============================
 // Lấy thống kê tổng quan của hệ thống cho Admin Dashboard.
 // ============================
-
 router.get("/stats", (req, res) => {
 
   // USERS
@@ -73,7 +72,6 @@ router.get("/stats", (req, res) => {
 // ============================
 // Lấy danh sách tất cả người dùng.
 // ============================
-
 router.get("/users", (req, res) => {
   const sql = `
     SELECT
