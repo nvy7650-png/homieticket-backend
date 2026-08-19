@@ -108,7 +108,7 @@ console.log("ROWS:", rows);
   VALUES ?`;
 
 const expiresAt = new Date(
-Date.now() + 10 * 60 * 1000
+Date.now() + 10 * 1000
 );
 
 console.log("SERVER NOW:", new Date());
