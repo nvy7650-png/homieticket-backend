@@ -10,12 +10,10 @@ const upload = multer({
 });
 
 // ============================
-// GET ALL APPROVED EVENTS HOMEPAGE
+// Lấy danh sách sự kiện đã duyệt
 // ============================
 router.get("/", (req, res) => {
-
-  const categoryId =
-    req.query.category;
+  const categoryId = req.query.category;
 
   let sql = `
     SELECT
@@ -26,99 +24,65 @@ router.get("/", (req, res) => {
         SELECT MIN(z.price)
         FROM zones z
         WHERE z.event_id = e.id
-      ) AS min_price
-      ,
-
-(
-  SELECT COUNT(*)
-  FROM tickets t
-  WHERE
-    t.event_id = e.id
-    AND t.status = 'VALID'
-) AS sold_count
- ,
-(
-  SELECT SUM(
-
-    CASE
-
-      WHEN z.zone_type = 'STANDING'
-      THEN z.capacity
-
-      ELSE z.total_rows * z.seats_per_row
-
-    END
-
-  )
-
-  FROM zones z
-
-  WHERE z.event_id = e.id
-
-) AS total_capacity
- ,
-
-(
-  (
-    SELECT COUNT(*)
-    FROM tickets t
-    WHERE
-      t.event_id = e.id
-      AND t.status = 'VALID'
-  )
-
-  /
-
-  NULLIF(
-
-    (
-      SELECT SUM(
-
-        CASE
-
-          WHEN z.zone_type = 'STANDING'
-          THEN z.capacity
-
-          ELSE z.total_rows * z.seats_per_row
-
-        END
-
-      )
-
-      FROM zones z
-
-      WHERE z.event_id = e.id
-
-    ),
-
-    0
-
-  )
-
-) AS sold_rate
-
+      ) AS min_price,
+      (
+        SELECT COUNT(*)
+        FROM tickets t
+        WHERE
+          t.event_id = e.id
+          AND t.status = 'VALID'
+      ) AS sold_count,
+      (
+        SELECT SUM(
+          CASE
+            WHEN z.zone_type = 'STANDING'
+            THEN z.capacity
+            ELSE z.total_rows * z.seats_per_row
+          END
+        )
+        FROM zones z
+        WHERE z.event_id = e.id
+      ) AS total_capacity,
+      (
+        (
+          SELECT COUNT(*)
+          FROM tickets t
+          WHERE
+            t.event_id = e.id
+            AND t.status = 'VALID'
+        )
+        /
+        NULLIF(
+          (
+            SELECT SUM(
+              CASE
+                WHEN z.zone_type = 'STANDING'
+                THEN z.capacity
+                ELSE z.total_rows * z.seats_per_row
+              END
+            )
+            FROM zones z
+            WHERE z.event_id = e.id
+          ),
+          0
+        )
+      ) AS sold_rate
     FROM events e
-
     LEFT JOIN categories c
       ON e.category_id = c.id
-
     LEFT JOIN showtimes s
       ON s.event_id = e.id
-
     WHERE
-  e.status = 'APPROVED'
+      e.status = 'APPROVED'
   `;
 
   const params = [];
 
   if (categoryId) {
-
     sql += `
       AND e.category_id = ?
     `;
-
     params.push(categoryId);
-
   }
 
   sql += `
@@ -126,28 +90,21 @@ router.get("/", (req, res) => {
     ORDER BY e.created_at DESC
   `;
 
-  db.query(
-    sql,
-    params,
-    (err, results) => {
-
-      if (err) {
-
-        console.log(err);
-
-        return res.status(500).json({
-          message: "Lỗi server",
-        });
-
-      }
-
-      res.json(results);
-
+  db.query(sql, params, (err, results) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({
+        message: "Lỗi server",
+      });
     }
-  );
 
+    res.json(results);
+  });
 });
 
+// ============================
+// Lấy danh sách ghế, trạng thái đặt ghế và giá vé theo suất chiếu
+// ============================
 router.get("/showtimes/:id/seats", (req, res) => {
 
   const sql = `
@@ -201,6 +158,9 @@ router.get("/showtimes/:id/seats", (req, res) => {
 
 });
 
+// ============================
+// Lấy 5 sự kiện nổi bật nhất hiển thị trên Banner / Hero Section.
+// ============================
 router.get("/hero", (req, res) => {
 
   const sql = `
@@ -333,6 +293,9 @@ db.query(sql, (err, results) => {
 
 });
 
+// ============================
+// Lấy chi tiết một sự kiện theo ID, bao gồm danh sách suất chiếu và danh sách khu vực vé.
+// ============================
 router.get('/:id', (req, res) => {
   const sql = `
     SELECT
@@ -403,15 +366,10 @@ router.get('/:id', (req, res) => {
   });
 });
 
-
-
 // ============================
-// ORGANIZER STATS
+//Lấy toàn bộ số liệu thống kê tổng quan dành cho bảng điều khiển của Nhà tổ chức sự kiện
 // ============================
-
-router.get(
-  "/organizer/:id/stats",
-  (req, res) => {
+router.get( "/organizer/:id/stats", (req, res) => {
 
     const organizerId = req.params.id;
 
@@ -632,9 +590,8 @@ router.get(
 );
 
 // ============================
-// GET EVENT SEATS
+// Lấy toàn bộ sơ đồ ghế ngồi kèm thông tin khu vực và giá vé của một sự kiện cụ thể
 // ============================
-
 router.get("/:eventId/seats", (req, res) => {
 
   const sql = `
@@ -712,12 +669,9 @@ router.get("/:eventId/seats", (req, res) => {
 
 });
 
-
 // ============================
-// GET EVENT SEATMAP
+// Lấy thông tin chi tiết về sơ đồ chỗ ngồi hoàn chỉnh của một sự kiện cụ thể.
 // ============================
-
-
 router.get("/:eventId/seatmap", (req, res) => {
 
   const eventId =
@@ -883,8 +837,9 @@ FROM zones
 
 });
 
-
-
+// ============================
+// Lấy danh sách các suất diễn của một sự kiện cụ thể dựa trên ID sự kiện.
+// ============================
 router.get("/:id/showtimes", (req, res) => {
 
   const sql = `
@@ -916,8 +871,6 @@ router.get("/:id/showtimes", (req, res) => {
   );
 
 });
-
-
 
 // ============================
 // CREATE FULL EVENT
