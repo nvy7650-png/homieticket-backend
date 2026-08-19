@@ -339,7 +339,8 @@ router.get('/:id', (req, res) => {
       events.*,
       categories.name AS category_name,
       users.name AS organizer_name,
-      users.email AS organizer_email
+      users.email AS organizer_email,
+      users.phone AS organizer_phone
     FROM events
     LEFT JOIN categories ON events.category_id = categories.id
     LEFT JOIN users ON events.organizer_id = users.id
