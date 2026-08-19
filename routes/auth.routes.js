@@ -219,7 +219,9 @@ router.post("/organizer/register", (req, res) => {
   );
 });
 
-// LOGIN
+// ============================
+// Đăng nhập tài khoản người dùng.
+// ============================
 router.post("/login", (req, res) => {
   const {
     email,
@@ -297,9 +299,7 @@ router.post("/login", (req, res) => {
 
 
 //Lấy chi tiết một user theo ID
-router.get(
-"/users/:id",
-(req, res) => {
+router.get( "/users/:id", (req, res) => {
 
 const userSql = `
   SELECT
