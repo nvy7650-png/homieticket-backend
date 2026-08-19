@@ -1,24 +1,16 @@
 const express = require("express");
-
 const router = express.Router();
-
 const db = require("../db");
-
 const multer = require("multer");
-
 const {
   storage,
 } = require("../config/cloudinary");
-
-
 const upload = multer({
   storage,
 });
 
-
 // ============================
-// GET ALL APPROVED EVENTS
-// HOMEPAGE
+// GET ALL APPROVED EVENTS HOMEPAGE
 // ============================
 router.get("/", (req, res) => {
 
@@ -29,15 +21,12 @@ router.get("/", (req, res) => {
     SELECT
       e.*,
       c.name AS category_name,
-
       MIN(s.start_time) AS first_showtime,
-
       (
         SELECT MIN(z.price)
         FROM zones z
         WHERE z.event_id = e.id
       ) AS min_price
-
       ,
 
 (
