@@ -1788,17 +1788,26 @@ router.get(
   "/organizer/:organizerId",
   (req, res) => {
 
-    const organizerId =
-      req.params.organizerId;
+    const organizerId = req.params.organizerId;
 
     const sql = `
       SELECT
-        id,
-        title
-      FROM events
-      WHERE organizer_id = ?
-      AND status = 'APPROVED'
-      ORDER BY id DESC
+        e.id,
+        e.title,
+        e.image_url,
+        e.location,
+        e.status,
+        e.category_id,
+        c.name AS category_name
+
+      FROM events e
+
+      LEFT JOIN categories c
+        ON c.id = e.category_id
+
+      WHERE e.organizer_id = ?
+
+      ORDER BY e.created_at DESC
     `;
 
     db.query(
@@ -1807,11 +1816,13 @@ router.get(
       (err, rows) => {
 
         if (err) {
+
           console.log(err);
 
           return res.status(500).json({
-            message: "Server error",
+            message: "Lỗi server",
           });
+
         }
 
         res.json(rows);
