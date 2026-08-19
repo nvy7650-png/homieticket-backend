@@ -334,110 +334,72 @@ db.query(sql, (err, results) => {
 });
 
 router.get('/:id', (req, res) => {
-
   const sql = `
-
     SELECT
-
       events.*,
-
-      categories.name
-      AS category_name
-
+      categories.name AS category_name,
+      users.name AS organizer_name,
+      users.email AS organizer_email
     FROM events
-
-    LEFT JOIN categories
-
-    ON events.category_id =
-    categories.id
-
+    LEFT JOIN categories ON events.category_id = categories.id
+    LEFT JOIN users ON events.organizer_id = users.id
     WHERE events.id = ?
-
   `;
 
-  db.query(
+  db.query(sql, [req.params.id], (err, results) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ message: "Lỗi server" });
+    }
 
-    sql,
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Không tìm thấy sự kiện" });
+    }
 
-    [req.params.id],
+    const event = results[0];
 
-    (err, results) => {
+    const showtimesSql = `
+      SELECT *
+      FROM showtimes
+      WHERE event_id = ?
+    `;
 
-      if (err) {
-
-        console.log(err);
-
-        return res
-          .status(500)
-          .json({
-            message: "Lỗi server",
-          });
-
+    db.query(showtimesSql, [req.params.id], (err2, showtimeResults) => {
+      if (err2) {
+        console.log(err2);
+        return res.status(500).json({ message: "Lỗi server" });
       }
 
-      if (
-        results.length === 0
-      ) {
-
-        return res
-          .status(404)
-          .json({
-            message:
-              "Không tìm thấy sự kiện",
-          });
-
-      }
-
-      const event = results[0];
-
-      const showtimesSql = `
-        SELECT *
-        FROM showtimes
+      const zonesSql = `
+        SELECT
+          id,
+          name,
+          price,
+          capacity,
+          zone_type,
+          total_rows,
+          seats_per_row,
+          sale_start,
+          sale_end
+        FROM zones
         WHERE event_id = ?
+        ORDER BY id
       `;
 
-      db.query(showtimesSql, [req.params.id], (err2, showtimeResults) => {
-        if (err2) {
-          console.log(err2);
+      db.query(zonesSql, [req.params.id], (err3, zoneResults) => {
+        if (err3) {
+          console.log(err3);
           return res.status(500).json({ message: "Lỗi server" });
         }
 
-        const zonesSql = `
-          SELECT
-            id,
-            name,
-            price,
-            capacity,
-            zone_type,
-            total_rows,
-            seats_per_row,
-            sale_start,
-            sale_end
-          FROM zones
-          WHERE event_id = ?
-          ORDER BY id
-        `;
-
-        db.query(zonesSql, [req.params.id], (err3, zoneResults) => {
-          if (err3) {
-            console.log(err3);
-            return res.status(500).json({ message: "Lỗi server" });
-          }
-
-          res.json({
-            event: event,
-            showtimes: showtimeResults,
-            zones: zoneResults,
-          });
-
+        res.json({
+          event: event,
+          showtimes: showtimeResults,
+          zones: zoneResults,
         });
-
       });
-
-    }
-
-  );
-
+    });
+  });
 });
 
 // ============================
@@ -1829,13 +1791,6 @@ WHERE id = ?
 
   }
 );
-
-
-// ============================
-// ADMIN REJECT EVENT
-// ============================
-
-
 
 // ============================
 // ADMIN GET ALL EVENTS
