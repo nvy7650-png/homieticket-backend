@@ -407,66 +407,60 @@ router.get('/:id', (req, res) => {
 // ============================
 
 
-router.get(
-  "/organizer/:id",
-  (req, res) => {
+router.get('/:id', (req, res) => {
+  const eventId = req.params.id;
 
-    const organizerId =
-      req.params.id;
+  // Lấy thêm organizer_name, organizer_email, organizer_phone từ bảng users
+  const sql = `
+    SELECT
+      events.*,
+      categories.name AS category_name,
+      users.name AS organizer_name,
+      users.email AS organizer_email,
+      users.phone AS organizer_phone
+    FROM events
+    LEFT JOIN categories ON events.category_id = categories.id
+    LEFT JOIN users ON events.organizer_id = users.id
+    WHERE events.id = ?
+  `;
 
-    const sql = `
+  db.query(sql, [eventId], (err, results) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).json({ message: "Lỗi server" });
+    }
 
-      SELECT
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Không tìm thấy sự kiện" });
+    }
 
-        events.*,
+    const event = results[0];
 
-        categories.name
-        AS category_name
+    // Lấy suất diễn
+    const showtimesSql = `SELECT * FROM showtimes WHERE event_id = ?`;
+    db.query(showtimesSql, [eventId], (err2, showtimeResults) => {
+      if (err2) return res.status(500).json({ message: "Lỗi server" });
 
-      FROM events
+      // Lấy danh sách hạng vé
+      const zonesSql = `
+        SELECT id, name, price, capacity, zone_type, total_rows, seats_per_row, sale_start, sale_end
+        FROM zones
+        WHERE event_id = ?
+        ORDER BY id
+      `;
 
-      LEFT JOIN categories
+      db.query(zonesSql, [eventId], (err3, zoneResults) => {
+        if (err3) return res.status(500).json({ message: "Lỗi server" });
 
-      ON events.category_id =
-      categories.id
-
-      WHERE events.organizer_id = ?
-
-      ORDER BY events.id DESC
-
-    `;
-
-    db.query(
-
-      sql,
-
-      [organizerId],
-
-      (err, results) => {
-
-        if (err) {
-
-          console.log(err);
-
-          return res
-            .status(500)
-            .json({
-              message:
-                "Lỗi server",
-            });
-
-        }
-
-        res.json(results);
-
-      }
-
-    );
-
-  }
-
-);
-
+        res.json({
+          event: event,
+          showtimes: showtimeResults,
+          zones: zoneResults,
+        });
+      });
+    });
+  });
+});
 // ============================
 // ORGANIZER STATS
 // ============================
