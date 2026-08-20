@@ -11,20 +11,6 @@ router.get("/organizer/:organizerId", (req, res) => {
       e.id,
       e.title,
 
-      -- Tính tổng số vé an toàn (Nếu bảng zones không có dữ liệu sẽ tự bằng 0, không gây lỗi SQL)
-      COALESCE(
-        (
-          SELECT SUM(
-            CASE 
-              WHEN z.zone_type = 'STANDING' THEN z.capacity
-              ELSE (z.rows * z.seats_per_row)
-            END
-          )
-          FROM zones z
-          WHERE z.event_id = e.id
-        ), 0
-      ) AS total_tickets,
-
       -- Đếm số vé đã bán ra của sự kiện
       (
         SELECT COUNT(*) 
@@ -40,7 +26,7 @@ router.get("/organizer/:organizerId", (req, res) => {
           AND t.status = 'USED'
       ) AS checked_in,
 
-      -- Lấy tổng số tiền THỰC TẾ đã thanh toán từ bảng payments
+      -- Lấy tổng số tiền THỰC TẾ đã thanh toán từ bảng payments (Đã trừ bớt Voucher / Mã giảm giá)
       (
         SELECT COALESCE(SUM(p.amount), 0)
         FROM payments p
@@ -59,7 +45,6 @@ router.get("/organizer/:organizerId", (req, res) => {
       console.log("Lỗi tính doanh thu:", err);
       return res.status(500).json({
         message: "Server error",
-        error: err.message
       });
     }
 
@@ -77,13 +62,6 @@ router.get("/event/:eventId/orders", (req, res) => {
       o.created_at,
       u.name AS user_name,
       u.email AS user_email,
-
-      -- Lấy số lượng vé trong đơn hàng (Tính tổng quantity từ order_items)
-      COALESCE(
-        (SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.order_id = o.id),
-        0
-      ) AS ticket_quantity,
-
       o.total_price AS original_price,
       p.amount AS final_amount,
       p.payment_method
@@ -103,5 +81,4 @@ router.get("/event/:eventId/orders", (req, res) => {
     res.json(rows);
   });
 });
-
 module.exports = router;
