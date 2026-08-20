@@ -11,16 +11,18 @@ router.get("/organizer/:organizerId", (req, res) => {
       e.id,
       e.title,
 
-      -- Thêm tổng số vé (sức chứa) để React tính phần trăm %
-      (
-        SELECT COALESCE(SUM(
-          CASE 
-            WHEN z.zone_type = 'STANDING' THEN z.capacity
-            ELSE (z.rows * z.seats_per_row)
-          END
-        ), 0) * COALESCE((SELECT COUNT(*) FROM showtimes st WHERE st.event_id = e.id), 1)
-        FROM zones z
-        WHERE z.event_id = e.id
+      -- Tính tổng số vé an toàn (Nếu bảng zones không có dữ liệu sẽ tự bằng 0, không gây lỗi SQL)
+      COALESCE(
+        (
+          SELECT SUM(
+            CASE 
+              WHEN z.zone_type = 'STANDING' THEN z.capacity
+              ELSE (z.rows * z.seats_per_row)
+            END
+          )
+          FROM zones z
+          WHERE z.event_id = e.id
+        ), 0
       ) AS total_tickets,
 
       -- Đếm số vé đã bán ra của sự kiện
@@ -38,7 +40,7 @@ router.get("/organizer/:organizerId", (req, res) => {
           AND t.status = 'USED'
       ) AS checked_in,
 
-      -- Lấy tổng số tiền THỰC TẾ đã thanh toán từ bảng payments (Đã trừ bớt Voucher / Mã giảm giá)
+      -- Lấy tổng số tiền THỰC TẾ đã thanh toán từ bảng payments
       (
         SELECT COALESCE(SUM(p.amount), 0)
         FROM payments p
@@ -57,6 +59,7 @@ router.get("/organizer/:organizerId", (req, res) => {
       console.log("Lỗi tính doanh thu:", err);
       return res.status(500).json({
         message: "Server error",
+        error: err.message
       });
     }
 
@@ -75,7 +78,7 @@ router.get("/event/:eventId/orders", (req, res) => {
       u.name AS user_name,
       u.email AS user_email,
 
-      -- Lấy số lượng vé trong đơn hàng (Ưu tiên tính tổng quantity trong order_items)
+      -- Lấy số lượng vé trong đơn hàng (Tính tổng quantity từ order_items)
       COALESCE(
         (SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.order_id = o.id),
         0
