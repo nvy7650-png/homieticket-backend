@@ -11,6 +11,18 @@ router.get("/organizer/:organizerId", (req, res) => {
       e.id,
       e.title,
 
+      -- Thêm tổng số vé (sức chứa) để React tính phần trăm %
+      (
+        SELECT COALESCE(SUM(
+          CASE 
+            WHEN z.zone_type = 'STANDING' THEN z.capacity
+            ELSE (z.rows * z.seats_per_row)
+          END
+        ), 0) * COALESCE((SELECT COUNT(*) FROM showtimes st WHERE st.event_id = e.id), 1)
+        FROM zones z
+        WHERE z.event_id = e.id
+      ) AS total_tickets,
+
       -- Đếm số vé đã bán ra của sự kiện
       (
         SELECT COUNT(*) 
@@ -62,6 +74,13 @@ router.get("/event/:eventId/orders", (req, res) => {
       o.created_at,
       u.name AS user_name,
       u.email AS user_email,
+
+      -- Lấy số lượng vé trong đơn hàng (Ưu tiên tính tổng quantity trong order_items)
+      COALESCE(
+        (SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.order_id = o.id),
+        0
+      ) AS ticket_quantity,
+
       o.total_price AS original_price,
       p.amount AS final_amount,
       p.payment_method
@@ -81,4 +100,5 @@ router.get("/event/:eventId/orders", (req, res) => {
     res.json(rows);
   });
 });
+
 module.exports = router;
