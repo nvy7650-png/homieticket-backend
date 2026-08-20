@@ -2,62 +2,53 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
-router.get(
-  "/organizer/:organizerId",
-  (req, res) => {
+router.get("/organizer/:organizerId", (req, res) => {
+  const organizerId = req.params.organizerId;
 
-    const organizerId =
-      req.params.organizerId;
+  const sql = `
+    SELECT 
+      e.id,
+      e.title,
 
-   const sql = `
-SELECT
-    e.id,
-    e.title,
-
-    (
-        SELECT COUNT(*)
+      -- Đếm số vé đã bán ra của sự kiện
+      (
+        SELECT COUNT(*) 
         FROM tickets t
         WHERE t.event_id = e.id
-    ) AS sold_tickets,
+      ) AS sold_tickets,
 
-    (
-        SELECT COUNT(*)
+      -- Đếm số vé đã check-in (dùng)
+      (
+        SELECT COUNT(*) 
         FROM tickets t
-        WHERE t.event_id = e.id
-        AND t.status = 'USED'
-    ) AS checked_in,
+        WHERE t.event_id = e.id 
+          AND t.status = 'USED'
+      ) AS checked_in,
 
-    (
-        SELECT COALESCE(SUM(o.total_price),0)
-        FROM orders o
-        WHERE o.event_id = e.id
-        AND o.status = 'PAID'
-    ) AS revenue
+      -- Lấy tổng số tiền THỰC TẾ đã thanh toán từ bảng payments (Đã trừ bớt Voucher / Mã giảm giá)
+      (
+        SELECT COALESCE(SUM(p.amount), 0)
+        FROM payments p
+        JOIN orders o ON p.order_id = o.id
+        WHERE o.event_id = e.id 
+          AND p.status = 'SUCCESS'
+      ) AS revenue
 
-FROM events e
+    FROM events e
+    WHERE e.organizer_id = ?
+    ORDER BY revenue DESC
+  `;
 
-WHERE e.organizer_id = ?
+  db.query(sql, [organizerId], (err, rows) => {
+    if (err) {
+      console.log("Lỗi tính doanh thu:", err);
+      return res.status(500).json({
+        message: "Server error",
+      });
+    }
 
-ORDER BY revenue DESC
-`;
-
-    db.query(
-      sql,
-      [organizerId],
-      (err, rows) => {
-
-        if (err) {
-          console.log(err);
-
-          return res.status(500).json({
-            message: "Server error",
-          });
-        }
-
-        res.json(rows);
-      }
-    );
-  }
-);
+    res.json(rows);
+  });
+});
 
 module.exports = router;
