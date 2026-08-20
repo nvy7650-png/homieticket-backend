@@ -62,11 +62,6 @@ router.get("/event/:eventId/orders", (req, res) => {
       o.created_at,
       u.name AS user_name,
       u.email AS user_email,
-      (
-        SELECT COUNT(*) 
-        FROM tickets t 
-        WHERE t.order_id = o.id
-      ) AS ticket_quantity,
       o.total_price AS original_price,
       p.amount AS final_amount,
       p.payment_method
