@@ -11,43 +11,22 @@ router.get("/organizer/:organizerId", (req, res) => {
       e.id,
       e.title,
 
-      -- 1. Tính TỔNG SỐ VÉ TỐI ĐA (Capacity) của sự kiện 
-      -- (Tùy theo loại khu vực: STANDING lấy capacity, SEATED lấy rows * seats_per_row)
+      -- Đếm số vé đã bán ra của sự kiện
       (
-        SELECT COALESCE(SUM(
-          CASE 
-            WHEN z.zone_type = 'STANDING' THEN z.capacity
-            ELSE (z.rows * z.seats_per_row)
-          END
-        ), 0) * (SELECT COUNT(*) FROM showtimes st WHERE st.event_id = e.id)
-        FROM zones z
-        WHERE z.event_id = e.id
-      ) AS total_tickets,
-
-      -- 2. Đếm số vé ĐÃ BÁN RA (nối tickets -> order_items -> orders)
-      (
-        SELECT COUNT(t.id) 
+        SELECT COUNT(*) 
         FROM tickets t
-        JOIN order_items oi ON t.order_item_id = oi.id
-        JOIN orders o ON oi.order_id = o.id
-        JOIN payments p ON o.id = p.order_id
-        WHERE o.event_id = e.id 
-          AND p.status = 'SUCCESS'
+        WHERE t.event_id = e.id
       ) AS sold_tickets,
 
-      -- 3. Đếm số vé ĐÃ CHECK-IN (status = 'USED')
+      -- Đếm số vé đã check-in (dùng)
       (
-        SELECT COUNT(t.id) 
+        SELECT COUNT(*) 
         FROM tickets t
-        JOIN order_items oi ON t.order_item_id = oi.id
-        JOIN orders o ON oi.order_id = o.id
-        JOIN payments p ON o.id = p.order_id
-        WHERE o.event_id = e.id 
+        WHERE t.event_id = e.id 
           AND t.status = 'USED'
-          AND p.status = 'SUCCESS'
       ) AS checked_in,
 
-      -- 4. Tổng tiền THỰC TẾ thu được từ thanh toán thành công
+      -- Lấy tổng số tiền THỰC TẾ đã thanh toán từ bảng payments (Đã trừ bớt Voucher / Mã giảm giá)
       (
         SELECT COALESCE(SUM(p.amount), 0)
         FROM payments p
@@ -66,7 +45,6 @@ router.get("/organizer/:organizerId", (req, res) => {
       console.log("Lỗi tính doanh thu:", err);
       return res.status(500).json({
         message: "Server error",
-        error: err.message
       });
     }
 
@@ -84,12 +62,6 @@ router.get("/event/:eventId/orders", (req, res) => {
       o.created_at,
       u.name AS user_name,
       u.email AS user_email,
-      (
-        SELECT COUNT(t.id) 
-        FROM tickets t
-        JOIN order_items oi ON t.order_item_id = oi.id
-        WHERE oi.order_id = o.id
-      ) AS ticket_quantity,
       o.total_price AS original_price,
       p.amount AS final_amount,
       p.payment_method
@@ -109,5 +81,4 @@ router.get("/event/:eventId/orders", (req, res) => {
     res.json(rows);
   });
 });
-
 module.exports = router;
