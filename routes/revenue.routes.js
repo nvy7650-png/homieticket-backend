@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 
+// 1. Lấy tổng quan doanh thu theo Ban tổ chức (Organizer)
 router.get("/organizer/:organizerId", (req, res) => {
   const organizerId = req.params.organizerId;
 
@@ -47,6 +48,39 @@ router.get("/organizer/:organizerId", (req, res) => {
       });
     }
 
+    res.json(rows);
+  });
+});
+
+// 2. Lấy chi tiết các đơn hàng thanh toán THÀNH CÔNG của 1 sự kiện
+router.get("/event/:eventId/orders", (req, res) => {
+  const { eventId } = req.params;
+
+  const sql = `
+    SELECT 
+      o.id AS order_id,
+      o.created_at,
+      u.name AS user_name,
+      u.email AS user_email,
+      COUNT(t.id) AS ticket_quantity,
+      o.total_price AS original_price,
+      p.amount AS final_amount,
+      p.payment_method
+    FROM orders o
+    JOIN users u ON o.user_id = u.id
+    JOIN payments p ON o.id = p.order_id
+    LEFT JOIN tickets t ON o.id = t.order_id
+    WHERE o.event_id = ? 
+      AND p.status = 'SUCCESS'
+    GROUP BY o.id, o.created_at, u.name, u.email, o.total_price, p.amount, p.payment_method
+    ORDER BY o.created_at DESC
+  `;
+
+  db.query(sql, [eventId], (err, rows) => {
+    if (err) {
+      console.error("Lỗi lấy danh sách đơn hàng:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
     res.json(rows);
   });
 });
